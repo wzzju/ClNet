@@ -15,7 +15,7 @@ extern "C" {
 Java_io_github_wzzju_clnet_MainActivity_##METHOD_NAME
 
 JNIEXPORT jstring JNICALL
-CLNET(stringFromJNI)(JNIEnv *env, jobject /* this */);
+CLNET(testCL)(JNIEnv *env, jobject /* this */);
 
 #ifdef __cplusplus
 }

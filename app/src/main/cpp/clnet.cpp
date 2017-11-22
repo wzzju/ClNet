@@ -3,7 +3,8 @@
 #include "clnet.h"
 
 JNIEXPORT jstring JNICALL
-CLNET(stringFromJNI)(JNIEnv *env, jobject /* this */) {
-    std::string hello = "Start ClNet";
+CLNET(testCL)(JNIEnv *env, jobject /* this */) {
+    std::string hello = "\n**************************END**************************\n";
+
     return env->NewStringUTF(hello.c_str());
 }
