@@ -18,42 +18,42 @@
  * representation for an OpenCL error code.
  * For example, "CL_DEVICE_NOT_FOUND" instead of "-1".
  */
-const char* opencl_error_to_str (cl_int error);
+const char *opencl_error_to_str(cl_int error);
 
-#define CHECK_ERRORS(ERR)                                                      \
+#define CHECK_ERRORS(ERR, FILE, LINE)                                                 \
     if(ERR != CL_SUCCESS)                                                             \
     {                                                                                 \
         LOGD                                                                          \
         (                                                                             \
-            "OpenCL error with code %s happened in file %s at line %d. Exiting.\n",   \
-            opencl_error_to_str(ERR), __FILE__, __LINE__                              \
+            "OPENCL ERROR with the error code %s.\nIt is happened in file %s at line %d.\nExiting!\n",   \
+            opencl_error_to_str(ERR), FILE, LINE                                      \
         );                                                                            \
                                                                                       \
         return;                                                                       \
     }
 
-#define CHECK_ERRORS_WITH_RETURN(ERR) \
+#define CHECK_ERRORS_WITH_RETURN(ERR, FILE, LINE)                                     \
     if(ERR != CL_SUCCESS)                                                             \
     {                                                                                 \
         LOGD                                                                          \
         (                                                                             \
-            "OpenCL error with code %s happened in file %s at line %d. Exiting.\n",   \
-            opencl_error_to_str(ERR), __FILE__, __LINE__                              \
+            "OPENCL ERROR with the error code %s.\nIt is happened in file %s at line %d.\nExiting!\n",   \
+            opencl_error_to_str(ERR), FILE, LINE                                      \
         );                                                                            \
                                                                                       \
         return ERR;                                                                   \
     }
 
-#define CHECK_ERRORS_WITH_NULL_RETURN(ERR) \
+#define CHECK_ERRORS_WITH_NULL_RETURN(ERR, FILE, LINE)                                \
     if(ERR != CL_SUCCESS)                                                             \
     {                                                                                 \
         LOGD                                                                          \
         (                                                                             \
-            "OpenCL error with code %s happened in file %s at line %d. Exiting.\n",   \
-            opencl_error_to_str(ERR), __FILE__, __LINE__                              \
+            "OPENCL ERROR with the error code %s.\nIt is happened in file %s at line %d.\nExiting!\n",   \
+            opencl_error_to_str(ERR), FILE, LINE                                      \
         );                                                                            \
                                                                                       \
-        return NULL;                                                                   \
+        return NULL;                                                                  \
     }
 
 #endif //CLNET_CLLOG_H

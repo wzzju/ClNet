@@ -29,6 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private Button clear;
     private TextView textView;
     private ProgressBar progress;
+    private final String TAG = "CLNET";
 
     StringBuilder content = new StringBuilder("*************************START*************************\n");
 
@@ -44,7 +45,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onRun(View v) {
-        textView.setText(content.toString()+testCL());
+        textView.setText(content.toString() + testCL());
+        deviceQuery();
     }
 
     public void onClear(View v) {
@@ -56,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
      * which is packaged with this application.
      */
     public native String testCL();
+    public native void deviceQuery();
 
     private void setBtns(boolean isEnabled) {
         run.setEnabled(isEnabled);
@@ -83,14 +86,12 @@ public class MainActivity extends AppCompatActivity {
                 File of = new File(
                         MainActivity.this.getDir("execdir", MainActivity.this.MODE_PRIVATE),
                         strings[0]);
-//                content.append(of.getAbsolutePath() + "\n");
                 OutputStream out = new FileOutputStream(of);
-
+//                Log.d(TAG, "OpenCL program path:" + of.getAbsolutePath());
                 InputStream in = MainActivity.this.getAssets().open(strings[0]);
                 int length = in.available();
                 byte[] buffer = new byte[length];
                 in.read(buffer);
-//                content.append(EncodingUtils.getString(buffer, "UTF-8") + "\n");
                 out.write(buffer);
                 in.close();
                 out.close();

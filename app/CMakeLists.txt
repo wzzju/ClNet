@@ -20,7 +20,8 @@ add_library( # Sets the name of the library.
              SHARED
 
              # Provides a relative path to your source file(s).
-             ${SRC_DIR}/clnet.cpp )
+             ${SRC_DIR}/clnet.cpp
+             ${SRC_DIR}/cl_log.cpp)
 
 find_library( # Sets the name of the path variable.
               log-lib

@@ -1,7 +1,7 @@
 //
 // Created by yuchen on 17-11-22.
 //
-#include "clLog.h"
+#include "cl_log.h"
 
 
 const char* opencl_error_to_str (cl_int error) {
