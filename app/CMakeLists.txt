@@ -7,6 +7,8 @@ set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}    -Xlinker --no-warn-mismatch -O2 -mfpu=v
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Xlinker --no-warn-mismatch -O2 -mfpu=vfpv3-d16 -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfloat-abi=hard -std=gnu++11")
 set(STLPORT_FORCE_REBUILD "true")
 
+add_definitions(-DDEBUG)
+
 add_library(lib_opencl SHARED IMPORTED)
 set_target_properties( lib_opencl
                        PROPERTIES

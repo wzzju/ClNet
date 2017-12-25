@@ -11,14 +11,11 @@
 extern "C" {
 #endif
 
-#define PROGRAM_FILE "/data/user/0/io.github.wzzju.clnet/app_execdir/matvec.cl"
-#define KERNEL_FUNC "matvec_mult"
-
 #define CLNET(METHOD_NAME) \
 Java_io_github_wzzju_clnet_MainActivity_##METHOD_NAME
 
 JNIEXPORT jstring JNICALL
-CLNET(testCL)(JNIEnv *env, jobject /* this */);
+CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_);
 
 JNIEXPORT void JNICALL
 CLNET(deviceQuery)(JNIEnv *env, jobject instance);

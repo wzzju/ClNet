@@ -10,8 +10,14 @@
 
 // Commonly-defined shortcuts for LogCat output from native C applications.
 #define  LOG_TAG    "CLNET"
+
+#ifdef DEBUG
 #define  LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
 #define  LOGE(...)  __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#else
+#define  LOGD(...)
+#define  LOGE(...)
+#endif
 
 /* This function helps to create informative messages in
  * case when OpenCL errors occur. The function returns a string

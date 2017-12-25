@@ -29,6 +29,7 @@ public class MainActivity extends AppCompatActivity {
     private Button clear;
     private TextView textView;
     private ProgressBar progress;
+    private String clPath;
     private final String TAG = "CLNET";
 
     StringBuilder content = new StringBuilder("*************************START*************************\n");
@@ -45,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onRun(View v) {
-        textView.setText(content.toString() + testCL());
+        textView.setText(content.toString() + runCL(clPath));
         deviceQuery();
     }
 
@@ -57,7 +58,9 @@ public class MainActivity extends AppCompatActivity {
      * A native method that is implemented by the 'native-lib' native library,
      * which is packaged with this application.
      */
-    public native String testCL();
+
+    public native String runCL(String path);
+
     public native void deviceQuery();
 
     private void setBtns(boolean isEnabled) {
@@ -65,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
         clear.setEnabled(isEnabled);
     }
 
-    private class AsyncCopyKernel extends AsyncTask<String, Void, Void> {
+    private class AsyncCopyKernel extends AsyncTask<String, Void, String> {
         @Override
         protected void onPreExecute() {
             setBtns(false);
@@ -74,20 +77,22 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        protected void onPostExecute(Void aVoid) {
+        protected void onPostExecute(String result) {
             setBtns(true);
             progress.setVisibility(View.GONE);
-            super.onPostExecute(aVoid);
+            clPath = result;
+            super.onPostExecute(result);
         }
 
         @Override
-        protected Void doInBackground(String... strings) {
+        protected String doInBackground(String... strings) {
+            String path = null;
             try {
                 File of = new File(
                         MainActivity.this.getDir("execdir", MainActivity.this.MODE_PRIVATE),
                         strings[0]);
                 OutputStream out = new FileOutputStream(of);
-//                Log.d(TAG, "OpenCL program path:" + of.getAbsolutePath());
+                path = of.getAbsolutePath();
                 InputStream in = MainActivity.this.getAssets().open(strings[0]);
                 int length = in.available();
                 byte[] buffer = new byte[length];
@@ -117,7 +122,7 @@ public class MainActivity extends AppCompatActivity {
              }
              ******************************DEBUG*************************************/
 
-            return null;
+            return path;
         }
     }
 }
