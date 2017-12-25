@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.4.1)
 set(DIST_DIR ${CMAKE_SOURCE_DIR}/../distribution)
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src/main/cpp)
 
-set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}    -Xlinker --no-warn-mismatch -O2 -mfpu=vfpv3-d16 -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -march=armv7-a -mfloat-abi=hard")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Xlinker --no-warn-mismatch -O2 -mfpu=vfpv3-d16 -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -march=armv7-a -mfloat-abi=hard -std=gnu++11")
+set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}    -Xlinker --no-warn-mismatch -O2 -mfpu=vfpv3-d16 -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfloat-abi=hard")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -Xlinker --no-warn-mismatch -O2 -mfpu=vfpv3-d16 -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfloat-abi=hard -std=gnu++11")
 set(STLPORT_FORCE_REBUILD "true")
 
 add_library(lib_opencl SHARED IMPORTED)
