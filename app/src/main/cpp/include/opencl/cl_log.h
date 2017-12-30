@@ -59,7 +59,7 @@ const char *opencl_error_to_str(cl_int error);
             opencl_error_to_str(ERR), FILE, LINE                                      \
         );                                                                            \
                                                                                       \
-        return NULL;                                                                  \
+        return nullptr;                                                                  \
     }
 
 #endif //CLNET_CLLOG_H

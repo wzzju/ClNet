@@ -22,8 +22,11 @@ add_library( # Sets the name of the library.
              SHARED
 
              # Provides a relative path to your source file(s).
-             ${SRC_DIR}/clnet.cpp
-             ${SRC_DIR}/cl_log.cpp)
+             ${SRC_DIR}/opencl/cl_log.cpp
+             ${SRC_DIR}/opencl/cl_objects.cpp
+             ${SRC_DIR}/cnpy.cpp
+             ${SRC_DIR}/run_neon.cpp
+             ${SRC_DIR}/clnet.cpp)
 
 find_library( # Sets the name of the path variable.
               log-lib
@@ -31,6 +34,9 @@ find_library( # Sets the name of the path variable.
               # Specifies the name of the NDK library that
               # you want CMake to locate.
               log )
+
+find_library(z-lib
+        NAMES z)
 
 target_include_directories(clnet PRIVATE ${DIST_DIR}/opencl/include)
 include_directories(${SRC_DIR}/include)
@@ -41,4 +47,5 @@ target_link_libraries( # Specifies the target library.
                        lib_opencl
                        # Links the target library to the log library
                        # included in the NDK.
-                       ${log-lib} )
+                       ${log-lib}
+                       ${z-lib})

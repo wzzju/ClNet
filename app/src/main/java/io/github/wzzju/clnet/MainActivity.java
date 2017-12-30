@@ -1,22 +1,31 @@
 package io.github.wzzju.clnet;
 
+import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import org.apache.http.util.EncodingUtils;
+import com.squareup.picasso.Picasso;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -25,12 +34,18 @@ public class MainActivity extends AppCompatActivity {
         System.loadLibrary("clnet");
     }
 
-    private Button run;
-    private Button clear;
-    private TextView textView;
+    private Activity activity = this;//获取当前的context
     private ProgressBar progress;
+    private ImageView imageView;
+    private TextView textView;
+    private Button run;
+    private Button init;
+    private Button clear;
+
     private String clPath;
     private final String TAG = "CLNET";
+    private static final int SELECT_PICTURE = 9999;//选取图片的请求码
+    private String selectedImagePath = null;//所选图片的路径
 
     StringBuilder content = new StringBuilder("*************************START*************************\n");
 
@@ -38,34 +53,181 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        run = findViewById(R.id.run);
-        clear = findViewById(R.id.clear);
-        textView = findViewById(R.id.content);
         progress = findViewById(R.id.progress);
-        new AsyncCopyKernel().execute("matvec.cl");
+        textView = findViewById(R.id.content);
+        imageView = findViewById(R.id.iv_image);
+        run = findViewById(R.id.run);
+        init = findViewById(R.id.init);
+        clear = findViewById(R.id.clear);
+        imageView.setOnClickListener((v) -> {
+            Intent intent = new Intent();
+            intent.setType("image/*");
+            intent.setAction(Intent.ACTION_GET_CONTENT);
+            startActivityForResult(Intent.createChooser(intent, "Select Picture"), SELECT_PICTURE);
+        });
+        new AsyncCopyKernel().execute("clnet.cl");
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == RESULT_OK) {
+            if (requestCode == SELECT_PICTURE) {
+                Uri selectedImageUri = data.getData();
+                if (CheckPermission.checkPermissionRead(activity))
+                    selectedImagePath = Utility.getPathByData(activity, data);
+                Log.d(TAG, selectedImagePath);
+                if (selectedImagePath != null)
+                    imageView.setImageURI(selectedImageUri);
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String[] permissions, int[] grantResults) {
+        switch (requestCode) {
+            case CheckPermission.CLNET_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE:
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(activity, "GRANTED READ PERMISSION!",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(activity, "GRANTING READ PERMISSION IS DENIED!",
+                            Toast.LENGTH_SHORT).show();
+                }
+                break;
+            case CheckPermission.CLNET_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE:
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(activity, "GRANTED WRITE PERMISSION!",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(activity, "GRANTING WRITE PERMISSION IS DENIED!",
+                            Toast.LENGTH_SHORT).show();
+                }
+                break;
+            default:
+                super.onRequestPermissionsResult(requestCode, permissions,
+                        grantResults);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
     }
 
     public void onRun(View v) {
-        textView.setText(content.toString() + runCL(clPath));
-        deviceQuery();
+        textView.setText("Run");
+//        textView.setText(content.toString() + runCL(clPath));
+//        runNpy("/data/local/tmp/clnet/lenet_model/");
+        runNEON();
+//        deviceQuery();
+    }
+
+    public void onInit(View v) {
+        textView.setText("Init");
+        new AsyncProcessImage().execute();
     }
 
     public void onClear(View v) {
         textView.setText("Empty");
     }
 
+
     /**
-     * A native method that is implemented by the 'native-lib' native library,
+     * A native method that is implemented by the 'clnet' native library,
      * which is packaged with this application.
      */
-
     public native String runCL(String path);
+
+    public native void runNpy(String dir);
+
+    public native void runNEON();
 
     public native void deviceQuery();
 
     private void setBtns(boolean isEnabled) {
         run.setEnabled(isEnabled);
+        init.setEnabled(isEnabled);
         clear.setEnabled(isEnabled);
+    }
+
+    private class AsyncProcessImage extends AsyncTask<Void, Void, Void> {
+        private Bitmap bm = null;
+
+        @Override
+        protected void onPreExecute() {
+            setBtns(false);
+            progress.setVisibility(View.VISIBLE);
+            super.onPreExecute();
+        }
+
+        @Override
+        protected void onPostExecute(Void v) {
+            setBtns(true);
+            progress.setVisibility(View.GONE);
+            super.onPostExecute(v);
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            float[] data = getImageData();
+            if (data != null) {
+                for (int i = data.length - 100; i < data.length; i++) {
+                    Log.d(TAG, "Pixel at " + i + " : " + data[i]);
+                }
+                Log.d(TAG, "Length = " + data.length);
+            }
+            return null;
+        }
+
+        private float[] getImageData() {
+            if (selectedImagePath != null) {
+                final int IMG_WIDTH = 28;
+                final int IMG_HEIGHT = 28;
+                final int IMG_C = 3;
+
+                final float[] bitmapArray = new float[IMG_C * IMG_HEIGHT * IMG_WIDTH];
+
+                try {
+                    bm = Picasso.with(activity)
+                            .load(new File(selectedImagePath))
+                            .config(Bitmap.Config.ARGB_8888)
+                            .resize(IMG_WIDTH, IMG_HEIGHT)
+                            .get();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                if (bm != null) {
+                    ExecutorService executor = Executors.newFixedThreadPool(8);
+                    for (int c = 0; c < IMG_C; c++) {
+                        for (int h = 0; h < IMG_HEIGHT; h++) {
+                            final int final_C = c;
+                            final int final_H = h;
+                            executor.execute(() -> {
+                                for (int w = 0; w < IMG_WIDTH; w++) {
+                                    // The x coordinate (0...width-1) of the pixel to return
+                                    // The yto coordinate (0...height-1) of the pixel to return
+                                    int pixel = bm.getPixel(w, final_H);
+                                    bitmapArray[final_C * IMG_HEIGHT * IMG_WIDTH + final_H * IMG_WIDTH + w] = Utility.getColorPixel(pixel, final_C);
+                                }
+                            });
+                        }
+                    }
+
+                    executor.shutdown();
+                    try {
+                        executor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                Log.d(TAG, "Height = " + bm.getHeight() + ", Width = " + bm.getWidth());
+                return bitmapArray;
+            } else {
+                return null;
+            }
+        }
     }
 
     private class AsyncCopyKernel extends AsyncTask<String, Void, String> {
@@ -110,7 +272,7 @@ public class MainActivity extends AppCompatActivity {
             /******************************DEBUG*************************************
              try {
              FileInputStream fin = new FileInputStream(
-             "/data/user/0/io.github.wzzju.clnet/app_execdir/matvec.cl"
+             "/data/user/0/io.github.wzzju.clnet/app_execdir/clnet.cl"
              );
              int len = fin.available();
              byte[] buf = new byte[len];

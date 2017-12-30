@@ -1,31 +1,25 @@
 #include <jni.h>
 #include <string>
 #include <fstream>
+#include <sstream>
 #include <stdlib.h>
 #include <vector>
 #include <CL/cl.h>
+#include "helper.h"
+#include "cnpy.h"
+#include "opencl/cl_log.h"
+#include "opencl/cl_objects.h"
 #include "clnet.h"
-#include "cl_log.h"
 
 using namespace std;
-
-/**
- * 根据OpenCL程序路径返回其字符串源码。
- * @param inputPath
- * @return
- */
-inline string load_program(const char *inputPath) {
-    ifstream programFile(inputPath);
-    string programString{istreambuf_iterator<char>(programFile),
-                         istreambuf_iterator<char>()};
-    return programString;
-}
 
 JNIEXPORT jstring JNICALL
 CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
     const char *path = env->GetStringUTFChars(path_, 0);
-    LOGD("The OpenCL program path: %s", path);
-    string res_str = "\n**************************END**************************\n";
+    cl_objects &clObject = cl_objects::getCLObject(CL_DEVICE_TYPE_GPU, path);
+
+    stringstream strs;
+    strs << endl << "/*" << __FUNCTION__ << "*/" << endl;;
 
     /* Data and buffers */
     float mat[16], vec[4], result[4];
@@ -45,112 +39,55 @@ CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
     }
 
     cl_int err;
-
-    /* Identify a platform */
-    cl_platform_id platform;
-    err = clGetPlatformIDs(1, &platform, nullptr);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    /* Access a device */
-    cl_device_id device;
-    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, nullptr);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    /* Create the context */
-    cl_context context;
-    context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &err);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    /* Read program file and place content into buffer */
-    const char *program_buffer = load_program(path).c_str();
-
-    /* Create program from file */
-    cl_program program;
-    program = clCreateProgramWithSource(context, 1,
-                                        &program_buffer, 0, &err);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-    /* Build program */
-    err = clBuildProgram(program, 0, 0, "-O3 -cl-mad-enable -cl-fast-relaxed-math", 0,
-                         0);
-
-    /* Get OpenCL program build log */
-    if (err == CL_BUILD_PROGRAM_FAILURE) {
-        size_t log_length = 0;
-
-        err = clGetProgramBuildInfo(
-                program,
-                device,
-                CL_PROGRAM_BUILD_LOG,
-                0,
-                0,
-                &log_length);
-        CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-        vector<char> log_buf = vector<char>(log_length);
-
-        err = clGetProgramBuildInfo(
-                program,
-                device,
-                CL_PROGRAM_BUILD_LOG,
-                log_length,
-                (void *) log_buf.data(),
-                0);
-        CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-        LOGE("Failed to build the OpenCL program!\nBuild log: %s", log_buf.data());
-
-        return nullptr;
-    }
-
-    /* Create kernel for the mat_vec_mult function */
-    cl_kernel kernel = clCreateKernel(program, "matvec_mult", &err);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
     /* Create CL buffers to hold input and output data */
-    cl_mem mat_buff = clCreateBuffer(context, CL_MEM_READ_ONLY |
-                                              CL_MEM_COPY_HOST_PTR, sizeof(float) * 16, mat, &err);
+    cl_mem mat_buff = clCreateBuffer(clObject.getContexts()[0], CL_MEM_READ_ONLY |
+                                                                CL_MEM_COPY_HOST_PTR,
+                                     sizeof(float) * 16, mat, &err);
     CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
 
-    cl_mem vec_buff = clCreateBuffer(context, CL_MEM_READ_ONLY |
-                                              CL_MEM_COPY_HOST_PTR, sizeof(float) * 4, vec, &err);
+    cl_mem vec_buff = clCreateBuffer(clObject.getContexts()[0], CL_MEM_READ_ONLY |
+                                                                CL_MEM_COPY_HOST_PTR,
+                                     sizeof(float) * 4, vec, &err);
     CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
 
-    cl_mem res_buff = clCreateBuffer(context, CL_MEM_WRITE_ONLY,
+    cl_mem res_buff = clCreateBuffer(clObject.getContexts()[0], CL_MEM_WRITE_ONLY,
                                      sizeof(float) * 4, nullptr, &err);
     CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
 
     /* Create kernel arguments from the CL buffers */
-    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &mat_buff);
+    err = clSetKernelArg(clObject.getMatvec().kernel, 0, sizeof(cl_mem), &mat_buff);
     CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
 
-    err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &vec_buff);
+    err = clSetKernelArg(clObject.getMatvec().kernel, 1, sizeof(cl_mem), &vec_buff);
     CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
 
-    err = clSetKernelArg(kernel, 2, sizeof(cl_mem), &res_buff);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    /* Create a CL command queue for the device*/
-    cl_command_queue queue = clCreateCommandQueue(context, device, 0, &err);
+    err = clSetKernelArg(clObject.getMatvec().kernel, 2, sizeof(cl_mem), &res_buff);
     CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
 
     /* Enqueue the command queue to the device */
-    size_t work_units_per_kernel = 4; /* 4 work-units per kernel */
-    err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &work_units_per_kernel,
-                                 nullptr, 0, nullptr, nullptr);
+    {
+        CostTimeHelper timeHelper("cl_test");
+        size_t work_units_per_kernel = 4; /* 4 work-units per kernel */
+        err = clEnqueueNDRangeKernel(clObject.getQueues()[0][0], clObject.getMatvec().kernel, 1,
+                                     nullptr, &work_units_per_kernel,
+                                     nullptr, 0, nullptr, nullptr);
+        CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
 
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    /* Read the result */
-    err = clEnqueueReadBuffer(queue, res_buff, CL_TRUE, 0, sizeof(float) * 4,
-                              result, 0, nullptr, nullptr);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
+        /* Read the result */
+        err = clEnqueueReadBuffer(clObject.getQueues()[0][0], res_buff, CL_TRUE, 0,
+                                  sizeof(float) * 4,
+                                  result, 0, nullptr, nullptr);
+        CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
+    }
 
     /* Test the result */
     if ((result[0] == correct[0]) && (result[1] == correct[1])
         && (result[2] == correct[2]) && (result[3] == correct[3])) {
         LOGD("Matrix-vector multiplication is executed successfully!\n");
+        strs << "Matrix-vector multiplication is executed successfully!" << endl;
     } else {
         LOGD("Fail to execute matrix-vector multiplication!\n");
+        strs << "Fail to execute matrix-vector multiplication!" << endl;
     }
 
     /* Deallocate resources */
@@ -160,20 +97,59 @@ CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
     CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
     err = clReleaseMemObject(res_buff);
     CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-    err = clReleaseKernel(kernel);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-    err = clReleaseCommandQueue(queue);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-    err = clReleaseProgram(program);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-    err = clReleaseContext(context);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    LOGD("OpenCL test is finished!");
 
     env->ReleaseStringUTFChars(path_, path);
+    // strs.str("");// 清空stringstream内容
+    // strs.clear();// 清空stream的状态（比如出错状态）
+    return env->NewStringUTF(strs.str().c_str());
+}
 
-    return env->NewStringUTF(res_str.c_str());
+JNIEXPORT void JNICALL
+CLNET(runNpy)(JNIEnv *env, jobject instance, jstring dir_) {
+    const char *dir = env->GetStringUTFChars(dir_, 0);
+    ostringstream os;
+    os << dir << "layer1-conv1_weight_0.npy";
+    string path = os.str();
+    os.str("");//清空os的stream内容
+
+    cnpy::NpyArray arr = cnpy::npy_load(path);
+    LOGD("Element size: %zu", arr.word_size);
+    LOGD("Shape size: %zu", arr.shape.size());
+
+    float *loaded_data = arr.data<float>();
+    for (auto i = 0; i < arr.shape.size(); ++i) {
+        LOGD("Dim %d: %zu", i, arr.shape[i]);
+    }
+    for (auto i = 0; i < arr.shape[0]; ++i) {
+        for (auto j = 0; j < arr.shape[1]; ++j) {
+            for (auto k = 0; k < arr.shape[2]; ++k) {
+                for (auto l = 0; l < arr.shape[3]; ++l) {
+                    auto index = i * arr.shape[1] * arr.shape[2] * arr.shape[3] +
+                                 j * arr.shape[2] * arr.shape[3] + k * arr.shape[3] + l;
+                    LOGD("%lu : %f", index, loaded_data[index]);
+                }
+            }
+        }
+    }
+
+    os << dir << "layer1-conv1_bias_0.npy";
+    path = os.str();
+    os.str("");
+
+    arr = cnpy::npy_load(path);
+    LOGD("Element size: %zu", arr.word_size);
+    LOGD("Shape size: %zu", arr.shape.size());
+
+    loaded_data = arr.data<float>();
+    for (auto i = 0; i < arr.shape.size(); ++i) {
+        LOGD("Dim %d: %zu", i, arr.shape[i]);
+    }
+
+    for (auto i = 0; i < arr.shape[0]; ++i) {
+        LOGD("%lu : %f", i, loaded_data[i]);
+    }
+
+    env->ReleaseStringUTFChars(dir_, dir);
 }
 
 JNIEXPORT void JNICALL
@@ -183,7 +159,7 @@ CLNET(deviceQuery)(JNIEnv *env, jobject instance) {
     cl_int err;
     err = clGetPlatformIDs(5, nullptr, &num_platforms);
     CHECK_ERRORS(err, __FILE__, __LINE__);
-    LOGD("I have platforms: %d\n", num_platforms); //本人计算机上显示为2，有intel和nvidia两个平台  
+    LOGD("Detect %d platform(s).\n", num_platforms);
 
     platforms.resize(num_platforms);
     err = clGetPlatformIDs(num_platforms, platforms.data(), nullptr);
@@ -202,7 +178,7 @@ CLNET(deviceQuery)(JNIEnv *env, jobject instance) {
         err = clGetPlatformInfo(platforms[i],
                                 CL_PLATFORM_EXTENSIONS, 0, nullptr, &ext_size);
         CHECK_ERRORS(err, __FILE__, __LINE__);
-        LOGD("The size of extension data is: %d\n", ext_size);
+        LOGD("The size of extension data is: %zu\n", ext_size);
 
         ext_data.resize(ext_size);
         clGetPlatformInfo(platforms[i], CL_PLATFORM_EXTENSIONS,
