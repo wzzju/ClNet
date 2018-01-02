@@ -18,11 +18,14 @@ import android.widget.Toast;
 
 import com.squareup.picasso.Picasso;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -47,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int SELECT_PICTURE = 9999;//选取图片的请求码
     private String selectedImagePath = null;//所选图片的路径
 
-    StringBuilder content = new StringBuilder("*************************START*************************\n");
+    StringBuilder content = new StringBuilder("***********************START***********************\n");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,7 +78,7 @@ public class MainActivity extends AppCompatActivity {
                 Uri selectedImageUri = data.getData();
                 if (CheckPermission.checkPermissionRead(activity))
                     selectedImagePath = Utility.getPathByData(activity, data);
-                Log.d(TAG, selectedImagePath);
+//                Log.d(TAG, selectedImagePath);
                 if (selectedImagePath != null)
                     imageView.setImageURI(selectedImageUri);
             }
@@ -119,17 +122,18 @@ public class MainActivity extends AppCompatActivity {
         textView.setText("Run");
 //        textView.setText(content.toString() + runCL(clPath));
 //        runNpy("/data/local/tmp/clnet/lenet_model/");
-        runNEON();
-//        deviceQuery();
+        new AsyncProcessImage().execute();
     }
 
     public void onInit(View v) {
         textView.setText("Init");
-        new AsyncProcessImage().execute();
+//        deviceQuery();
     }
 
     public void onClear(View v) {
         textView.setText("Empty");
+        content.setLength(0);
+        content.append("***********************START***********************\n");
     }
 
 
@@ -137,11 +141,11 @@ public class MainActivity extends AppCompatActivity {
      * A native method that is implemented by the 'clnet' native library,
      * which is packaged with this application.
      */
+    public native float[] inference(float[] data);
+
     public native String runCL(String path);
 
     public native void runNpy(String dir);
-
-    public native void runNEON();
 
     public native void deviceQuery();
 
@@ -165,19 +169,81 @@ public class MainActivity extends AppCompatActivity {
         protected void onPostExecute(Void v) {
             setBtns(true);
             progress.setVisibility(View.GONE);
+            textView.setText(content.toString());
             super.onPostExecute(v);
         }
 
         @Override
         protected Void doInBackground(Void... voids) {
+            /****************************单张图片的推断****************************/
             float[] data = getImageData();
             if (data != null) {
-                for (int i = data.length - 100; i < data.length; i++) {
-                    Log.d(TAG, "Pixel at " + i + " : " + data[i]);
+                float[] result = inference(data);
+                float max = 0;
+                int max_i = -1;
+                for (int i = 0; i < 10; ++i) {
+                    float value = result[i];
+                    if (max < value) {
+                        max = value;
+                        max_i = i;
+                    }
                 }
-                Log.d(TAG, "Length = " + data.length);
+                String inferenceResult = String.format(Locale.ENGLISH, "Max prob : %f, Class : %d\n", max, max_i);
+                Log.d(TAG, inferenceResult);
+                content.append(inferenceResult);
             }
             return null;
+        }
+
+        /**
+         * 测试网络精度
+         * CORRECT : 9916
+         * TOTAL : 10000
+         * ACCURACY : 0.9916
+         * Cost time : 715797 ms
+         */
+        private void netAccuracy() {
+            File file = new File("/data/local/tmp/mnist/test/test.txt");
+            BufferedReader reader = null;
+            int total = 0, correct = 0;
+            long start = System.currentTimeMillis();
+            try {
+                reader = new BufferedReader(new FileReader(file));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] keys = line.split(" ");
+                    selectedImagePath = keys[0];
+                    float[] data = getImageData();
+                    float[] result = inference(data);
+                    float max = 0;
+                    int max_i = -1;
+                    for (int i = 0; i < 10; ++i) {
+                        float value = result[i];
+                        if (max < value) {
+                            max = value;
+                            max_i = i;
+                        }
+                    }
+                    if (max_i == Integer.parseInt(keys[1]))
+                        correct++;
+                    total++;
+                }
+                reader.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                if (reader != null) {
+                    try {
+                        reader.close();
+                    } catch (IOException f) {
+                    }
+                }
+            }
+            long end = System.currentTimeMillis();
+            Log.d(TAG, "CORRECT : " + correct);
+            Log.d(TAG, "TOTAL : " + total);
+            Log.d(TAG, "ACCURACY : " + ((double) correct / (double) total));
+            Log.d(TAG, String.format(Locale.ENGLISH,"Cost time : %d ms", end - start));
         }
 
         private float[] getImageData() {
@@ -222,7 +288,7 @@ public class MainActivity extends AppCompatActivity {
                         e.printStackTrace();
                     }
                 }
-                Log.d(TAG, "Height = " + bm.getHeight() + ", Width = " + bm.getWidth());
+//                Log.d(TAG, "Height = " + bm.getHeight() + ", Width = " + bm.getWidth());
                 return bitmapArray;
             } else {
                 return null;

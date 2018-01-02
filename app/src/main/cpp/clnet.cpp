@@ -9,9 +9,31 @@
 #include "cnpy.h"
 #include "opencl/cl_log.h"
 #include "opencl/cl_objects.h"
+#include "net.h"
 #include "clnet.h"
 
 using namespace std;
+
+/****************************准备网络****************************/
+static net m_net("/data/local/tmp/lenet/");
+
+JNIEXPORT jfloatArray JNICALL
+CLNET(inference)(JNIEnv *env, jobject instance,
+                 jfloatArray data_) {
+    jfloat *data = env->GetFloatArrayElements(data_, NULL);
+
+    /****************************前向推断****************************/
+    vector<float> result;
+    {
+        CostTimeHelper timeHelper("inference");
+        result = m_net.forward(data);
+    }
+    jfloatArray resultArr = env->NewFloatArray(result.size());
+    env->SetFloatArrayRegion(resultArr, 0, result.size(), result.data());
+
+    env->ReleaseFloatArrayElements(data_, data, 0);
+    return resultArr;
+}
 
 JNIEXPORT jstring JNICALL
 CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {

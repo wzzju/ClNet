@@ -29,7 +29,7 @@ namespace helper {
     };
 }
 #define DO_STRING_JOIN(arg1, arg2) arg1 ## arg2
-#define STRING_JOIN(arg1, arg2) DO_STRING_JOIN(arg1, arg2)
+#define STRING_JOIN(arg1, arg2) DO_STRING_JOIN(arg1, arg2)// 定义DO_STRING_JOIN的原因是需要先解析__LINE__宏
 // SCOPE_EXIT宏的作用：无论这个宏出现在何处，它总是在scope结束处才执行code指定的代码。
 #define SCOPE_EXIT(code) auto STRING_JOIN(scope_exit_object_, __LINE__) = helper::MakeScopeExit([&](){code;});
 

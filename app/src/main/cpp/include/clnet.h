@@ -14,14 +14,15 @@ extern "C" {
 #define CLNET(METHOD_NAME) \
 Java_io_github_wzzju_clnet_MainActivity_##METHOD_NAME
 
+JNIEXPORT jfloatArray JNICALL
+CLNET(inference)(JNIEnv *env, jobject instance,
+                 jfloatArray data_);
+
 JNIEXPORT jstring JNICALL
 CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_);
 
 JNIEXPORT void JNICALL
 CLNET(runNpy)(JNIEnv *env, jobject instance, jstring dir_);
-
-JNIEXPORT void JNICALL
-CLNET(runNEON)(JNIEnv *env, jobject instance);
 
 JNIEXPORT void JNICALL
 CLNET(deviceQuery)(JNIEnv *env, jobject instance);
