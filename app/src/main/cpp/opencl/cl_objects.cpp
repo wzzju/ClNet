@@ -13,6 +13,7 @@ cl_objects &cl_objects::getCLObject(cl_device_type required_device_type, const c
     return clObject;
 }
 
+// HUAWEI MATE 9 PRO : Mali G71 8-core GPU
 cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
     cl_int err;
     err = clGetPlatformIDs(5, nullptr, &num_of_platforms);
@@ -25,14 +26,16 @@ cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
 
     num_of_devices.resize(num_of_platforms);
     devices.resize(num_of_platforms);
+    maxComputeUnits.resize(num_of_platforms);
     contexts.resize(num_of_platforms);
     queues.resize(num_of_platforms);
-    for (int i = 0; i < num_of_platforms; i++) {
+    for (cl_uint i = 0; i < num_of_platforms; i++) {
         err = clGetDeviceIDs(platforms[i], required_device_type, 1, nullptr, &num_of_devices[i]);
         LOGD("Platform %d has %d required device(s)", i, num_of_devices[i]);
         CHECK_ERRORS(err, __FILE__, __LINE__);
 
         devices[i].resize(num_of_devices[i]);
+        maxComputeUnits[i].resize(num_of_devices[i]);
         err = clGetDeviceIDs(platforms[i], required_device_type, num_of_devices[i],
                              devices[i].data(), nullptr);
         CHECK_ERRORS(err, __FILE__, __LINE__);
@@ -41,8 +44,23 @@ cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
         CHECK_ERRORS(err, __FILE__, __LINE__);
 
         queues[i].resize(num_of_devices[i]);
+
         for (cl_uint j = 0; j < num_of_devices[i]; ++j) {
-            queues[i][j] = clCreateCommandQueue(contexts[i], devices[i][j], 0, &err);
+            err = clGetDeviceInfo(devices[i][j], CL_DEVICE_MAX_COMPUTE_UNITS,
+                                  sizeof(cl_uint), &maxComputeUnits[i][j], NULL);
+            CHECK_ERRORS(err, __FILE__, __LINE__);
+            LOGD("The max compute units of the device %u::%u(platform_id::device_id) is %u.", i, j,
+                 maxComputeUnits[i][j]);
+            /******************************Local Memory : Cache******************************/
+            cl_ulong local_mem_size;
+            err = clGetDeviceInfo(devices[i][j], CL_DEVICE_LOCAL_MEM_SIZE,
+                                  sizeof(cl_ulong), &local_mem_size, NULL);
+            CHECK_ERRORS(err, __FILE__, __LINE__);
+            LOGD("The local memory size of the device %u::%u(platform_id::device_id) is %lu KB.", i,
+                 j, local_mem_size / 1024);
+            /******************************Local Memory : Cache******************************/
+            queues[i][j] = clCreateCommandQueue(contexts[i], devices[i][j],
+                                                CL_QUEUE_PROFILING_ENABLE, &err);
             CHECK_ERRORS(err, __FILE__, __LINE__);
         }
     }
@@ -79,22 +97,23 @@ cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
         LOGE("Failed to build the OpenCL program!\nBuild log: %s", log_buf.data());
     }
 
-    matvec.kernel = clCreateKernel(program, "matvec_mult", &err);
+    matmul.kernel = clCreateKernel(program, "mmmult", &err);
     CHECK_ERRORS(err, __FILE__, __LINE__);
 
     clGetKernelWorkGroupInfo(
-            matvec.kernel,
+            matmul.kernel,
             devices[0][0],
             CL_KERNEL_WORK_GROUP_SIZE,
             sizeof(size_t),
-            &matvec.kernel_max_workgroup_size,
+            &matmul.kernel_max_workgroup_size,
             nullptr
     );
-    LOGD("WORK_GROUP_SIZE : %zu ", matvec.kernel_max_workgroup_size);
+
+    LOGD("KERNEL MAX WORK GROUP SIZE : %zu ", matmul.kernel_max_workgroup_size);
 }
 
 cl_objects::~cl_objects() {
-    cl_int err = clReleaseKernel(matvec.kernel);
+    cl_int err = clReleaseKernel(matmul.kernel);
     CHECK_ERRORS(err, __FILE__, __LINE__);
     err = clReleaseProgram(program);
     CHECK_ERRORS(err, __FILE__, __LINE__);
@@ -112,10 +131,14 @@ const vector<cl_context> &cl_objects::getContexts() const {
     return contexts;
 }
 
-const clnet_kernel &cl_objects::getMatvec() const {
-    return matvec;
+const clnet_kernel &cl_objects::getMatmul() const {
+    return matmul;
 }
 
 const vector<vector<cl_command_queue>> &cl_objects::getQueues() const {
     return queues;
+}
+
+const vector<vector<cl_uint>> &cl_objects::getMaxComputeUnits() const {
+    return maxComputeUnits;
 }

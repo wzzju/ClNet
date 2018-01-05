@@ -3,7 +3,7 @@
 //
 #include <cmath>
 #include <cassert>
-#include "utilities.h"
+#include "utility_cpu.h"
 #include "layers/softmax_layer.h"
 
 softmax_layer::softmax_layer(int count) : count(count) {}

@@ -3,7 +3,7 @@
 //
 #include <cmath>
 #include <cassert>
-#include "utilities.h"
+#include "utility_cpu.h"
 #include "layers/pooling_layer.h"
 
 using namespace std;

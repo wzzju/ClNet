@@ -3,7 +3,7 @@
 //
 #include <cassert>
 #include <algorithm>
-#include "utilities.h"
+#include "utility_cpu.h"
 #include "layers/conv_layer.h"
 
 using namespace std;

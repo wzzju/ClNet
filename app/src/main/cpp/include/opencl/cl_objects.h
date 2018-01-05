@@ -12,11 +12,17 @@
 
 typedef struct {
     cl_kernel kernel;
+    // 每个kernel的workgroup_size，在local_work_size数组中所有元素的乘积不能大于该值。
     size_t kernel_max_workgroup_size;
 } clnet_kernel;
 
 class cl_objects {
-    cl_objects(cl_device_type required_device_type, const char *packageName);
+    /**
+     * 构建OpenCL对象
+     * @param required_device_type
+     * @param path .cl文件的路径
+     */
+    cl_objects(cl_device_type required_device_type, const char *path);
 
     cl_objects(const cl_objects &) = delete;
 
@@ -29,9 +35,11 @@ public:
 
     const std::vector<cl_context> &getContexts() const;
 
-    const clnet_kernel &getMatvec() const;
+    const clnet_kernel &getMatmul() const;
 
     const std::vector<std::vector<cl_command_queue>> &getQueues() const;
+
+    const std::vector<std::vector<cl_uint>> &getMaxComputeUnits() const;
 
 private:
     // OpenCL平台和设备
@@ -42,6 +50,7 @@ private:
     std::vector<cl_uint> num_of_devices; // 每个OpenCL平台上的设备数量
     // devices[num_of_platforms][num_of_devices]
     std::vector<std::vector<cl_device_id>> devices;// 每个OpenCL平台上有一个设备数组
+    std::vector<std::vector<cl_uint>> maxComputeUnits;// 每个OpenCL平台上有一个设备数组
     // contexts[num_of_platforms]
     std::vector<cl_context> contexts;
     // 每个OpenCL平台上有一个设备上下文
@@ -49,7 +58,7 @@ private:
     std::vector<std::vector<cl_command_queue>> queues; // 每个OpenCL平台上每个设备的命令队列
     cl_program program;// OpenCL程序~cl_objects();
     // OpenCL kernels
-    clnet_kernel matvec;// OpenCL内核函数
+    clnet_kernel matmul;// OpenCL内核函数
 
     /**
      * 根据OpenCL程序路径返回其字符串源码。

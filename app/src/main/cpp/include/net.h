@@ -2,8 +2,8 @@
 // Created by yuchen on 17-12-29.
 //
 
-#ifndef CAFFE_REF_NET_H
-#define CAFFE_REF_NET_H
+#ifndef CLNET_NET_H
+#define CLNET_NET_H
 
 #include <vector>
 
@@ -42,4 +42,4 @@ private:
 };
 
 
-#endif //CAFFE_REF_NET_H
+#endif //CLNET_NET_H

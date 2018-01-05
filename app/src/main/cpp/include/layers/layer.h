@@ -2,8 +2,8 @@
 // Created by yuchen on 17-12-29.
 //
 
-#ifndef CAFFE_REF_LAYER_H
-#define CAFFE_REF_LAYER_H
+#ifndef CLNET_LAYER_H
+#define CLNET_LAYER_H
 
 
 typedef enum {
@@ -24,4 +24,4 @@ public:
 };
 
 
-#endif //CAFFE_REF_LAYER_H
+#endif //CLNET_LAYER_H

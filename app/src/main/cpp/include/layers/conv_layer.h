@@ -2,8 +2,8 @@
 // Created by yuchen on 17-12-27.
 //
 
-#ifndef CAFFE_REF_CONV_LAYER_H
-#define CAFFE_REF_CONV_LAYER_H
+#ifndef CLNET_CONV_LAYER_H
+#define CLNET_CONV_LAYER_H
 
 
 #include <cstddef>
@@ -42,4 +42,4 @@ private:
 };
 
 
-#endif //CAFFE_REF_CONV_LAYER_H
+#endif //CLNET_CONV_LAYER_H

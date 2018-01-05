@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <vector>
 #include <CL/cl.h>
+#include <opencl/cl_objects.h>
+#include "utility_gpu.h"
 #include "helper.h"
 #include "cnpy.h"
 #include "opencl/cl_log.h"
@@ -32,97 +34,105 @@ CLNET(inference)(JNIEnv *env, jobject instance,
     env->SetFloatArrayRegion(resultArr, 0, result.size(), result.data());
 
     env->ReleaseFloatArrayElements(data_, data, 0);
+
     return resultArr;
 }
 
 JNIEXPORT jstring JNICALL
 CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
     const char *path = env->GetStringUTFChars(path_, 0);
-    cl_objects &clObject = cl_objects::getCLObject(CL_DEVICE_TYPE_GPU, path);
 
     stringstream strs;
-    strs << endl << "/*" << __FUNCTION__ << "*/" << endl;;
+    strs << endl << "/*" << __FUNCTION__ << "*/" << endl;
 
-    /* Data and buffers */
-    float mat[16], vec[4], result[4];
-    float correct[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    cl_objects &clObject = cl_objects::getCLObject(CL_DEVICE_TYPE_GPU, path);
+    /****************************Begin to est utility_gpu.cpp****************************/
+    cl_uint heightA = HEIGHT_G;
+    cl_uint widthA = WIDTH_G;
+    cl_uint heightB = HEIGHT_G;
+    cl_uint widthB = WIDTH_G;
+    // allocate memory for input and output matrices
+    // based on whatever matrix theory i know.
+    cl_int *matrixA = new cl_int[widthA * heightA]();
+    SCOPE_EXIT(delete[] matrixA);
+    cl_int *matrixB = new cl_int[widthB * heightB]();
+    SCOPE_EXIT(delete[] matrixB);
+    cl_int *matrixC = new cl_int[widthB * heightA]();
+    SCOPE_EXIT(delete[] matrixC);
 
-    /* Initialize data to be processed by the kernel */
-    for (int i = 0; i < 16; i++) {
-        mat[i] = i * 2.0f;
-    }
-
-    for (int i = 0; i < 4; i++) {
-        vec[i] = i * 3.0f;
-        correct[0] += mat[i] * vec[i];
-        correct[1] += mat[i + 4] * vec[i];
-        correct[2] += mat[i + 8] * vec[i];
-        correct[3] += mat[i + 12] * vec[i];
-    }
+    fillRandom(matrixA, widthA, heightA, 643);
+    fillRandom(matrixB, widthB, heightB, 991);
 
     cl_int err;
-    /* Create CL buffers to hold input and output data */
-    cl_mem mat_buff = clCreateBuffer(clObject.getContexts()[0], CL_MEM_READ_ONLY |
-                                                                CL_MEM_COPY_HOST_PTR,
-                                     sizeof(float) * 16, mat, &err);
+    cl_mem matrixAMemObj = clCreateBuffer(clObject.getContexts()[0],
+                                          CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                          widthA * heightA * sizeof(cl_int),
+                                          matrixA,
+                                          &err);
+    SCOPE_EXIT(clReleaseMemObject(matrixAMemObj));
+    cl_mem matrixBMemObj = clCreateBuffer(clObject.getContexts()[0],
+                                          CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                          widthB * heightB * sizeof(cl_int),
+                                          matrixB,
+                                          &err);
+    SCOPE_EXIT(clReleaseMemObject(matrixBMemObj));
+    cl_mem matrixCMemObj = clCreateBuffer(clObject.getContexts()[0],
+                                          CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                                          widthB * heightA * sizeof(cl_int),
+                                          0,
+                                          &err);
+    SCOPE_EXIT(clReleaseMemObject(matrixCMemObj));
+
+    clSetKernelArg(clObject.getMatmul().kernel, 0, sizeof(cl_int), (void *) &widthA);
+    clSetKernelArg(clObject.getMatmul().kernel, 1, sizeof(cl_int), (void *) &widthB);
+    clSetKernelArg(clObject.getMatmul().kernel, 2, sizeof(cl_mem), (void *) &matrixAMemObj);
+    clSetKernelArg(clObject.getMatmul().kernel, 3, sizeof(cl_mem), (void *) &matrixBMemObj);
+    clSetKernelArg(clObject.getMatmul().kernel, 4, sizeof(cl_mem), (void *) &matrixCMemObj);
+    size_t globalThreads[] = {heightA, widthB};
+    size_t localThreads[] = {clObject.getMatmul().kernel_max_workgroup_size / 16, 16};
+    cl_event exeEvt;
+    cl_ulong executionStart, executionEnd;
+
+    err = clEnqueueNDRangeKernel(clObject.getQueues()[0][0],
+                                 clObject.getMatmul().kernel,
+                                 2,
+                                 NULL,
+                                 globalThreads,
+                                 localThreads,
+                                 0,
+                                 NULL,
+                                 &exeEvt);
+    clWaitForEvents(1, &exeEvt);
     CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    cl_mem vec_buff = clCreateBuffer(clObject.getContexts()[0], CL_MEM_READ_ONLY |
-                                                                CL_MEM_COPY_HOST_PTR,
-                                     sizeof(float) * 4, vec, &err);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    cl_mem res_buff = clCreateBuffer(clObject.getContexts()[0], CL_MEM_WRITE_ONLY,
-                                     sizeof(float) * 4, nullptr, &err);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    /* Create kernel arguments from the CL buffers */
-    err = clSetKernelArg(clObject.getMatvec().kernel, 0, sizeof(cl_mem), &mat_buff);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    err = clSetKernelArg(clObject.getMatvec().kernel, 1, sizeof(cl_mem), &vec_buff);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    err = clSetKernelArg(clObject.getMatvec().kernel, 2, sizeof(cl_mem), &res_buff);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-    /* Enqueue the command queue to the device */
-    {
-        CostTimeHelper timeHelper("cl_test");
-        size_t work_units_per_kernel = 4; /* 4 work-units per kernel */
-        err = clEnqueueNDRangeKernel(clObject.getQueues()[0][0], clObject.getMatvec().kernel, 1,
-                                     nullptr, &work_units_per_kernel,
-                                     nullptr, 0, nullptr, nullptr);
-        CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-
-        /* Read the result */
-        err = clEnqueueReadBuffer(clObject.getQueues()[0][0], res_buff, CL_TRUE, 0,
-                                  sizeof(float) * 4,
-                                  result, 0, nullptr, nullptr);
-        CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-    }
-
-    /* Test the result */
-    if ((result[0] == correct[0]) && (result[1] == correct[1])
-        && (result[2] == correct[2]) && (result[3] == correct[3])) {
-        LOGD("Matrix-vector multiplication is executed successfully!\n");
-        strs << "Matrix-vector multiplication is executed successfully!" << endl;
+    // let's understand how long it took?
+    clGetEventProfilingInfo(exeEvt, CL_PROFILING_COMMAND_START, sizeof(executionStart),
+                            &executionStart, NULL);
+    clGetEventProfilingInfo(exeEvt, CL_PROFILING_COMMAND_END, sizeof(executionEnd), &executionEnd,
+                            NULL);
+    clReleaseEvent(exeEvt);
+    LOGD("Execution the matrix-matrix multiplication took %lu.%lu s\n",
+         (executionEnd - executionStart) / 1000000000,
+         (executionEnd - executionStart) % 1000000000);
+    clEnqueueReadBuffer(clObject.getQueues()[0][0],
+                        matrixCMemObj,
+                        CL_TRUE,
+                        0,
+                        heightA * widthB * sizeof(cl_int),
+                        matrixC,
+                        0,
+                        NULL,
+                        NULL);
+    if (compare(matrixC, matrixA, matrixB, heightA, widthA, widthB)) {
+        LOGD("Passed!");
+        strs << "Passed!" << endl;
     } else {
-        LOGD("Fail to execute matrix-vector multiplication!\n");
-        strs << "Fail to execute matrix-vector multiplication!" << endl;
+        LOGD("Failed!");
+        strs << "Failed!" << endl;
     }
-
-    /* Deallocate resources */
-    err = clReleaseMemObject(mat_buff);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-    err = clReleaseMemObject(vec_buff);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
-    err = clReleaseMemObject(res_buff);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
+    /****************************End to est utility_gpu.cpp****************************/
 
     env->ReleaseStringUTFChars(path_, path);
-    // strs.str("");// 清空stringstream内容
-    // strs.clear();// 清空stream的状态（比如出错状态）
+
     return env->NewStringUTF(strs.str().c_str());
 }
 
@@ -168,7 +178,7 @@ CLNET(runNpy)(JNIEnv *env, jobject instance, jstring dir_) {
     }
 
     for (auto i = 0; i < arr.shape[0]; ++i) {
-        LOGD("%lu : %f", i, loaded_data[i]);
+        LOGD("%d : %f", i, loaded_data[i]);
     }
 
     env->ReleaseStringUTFChars(dir_, dir);
@@ -240,8 +250,11 @@ CLNET(deviceQuery)(JNIEnv *env, jobject instance) {
         LOGD("Platform %d full profile or embeded profile? : %s\n", i, profile.data());
 
         /* Look for ICD extension */
-        if (strstr(ext_data.data(), icd_ext) != nullptr)
+        string ext_str(ext_data.begin(), ext_data.end());
+        if (ext_str.find(icd_ext) != string::npos)
             platform_index = i;
+//        if (strstr(ext_data.data(), icd_ext) != nullptr)
+//            platform_index = i;
         LOGD("Platform_index = %d", platform_index);
         /* Display whether ICD extension is supported */
         if (platform_index > -1)

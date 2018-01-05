@@ -2,8 +2,8 @@
 //Released under MIT License
 //license available in LICENSE file, or at http://www.opensource.org/licenses/mit-license.php
 
-#ifndef CL_MNIST_CNPY_H
-#define CL_MNIST_CNPY_H
+#ifndef CLNET_CNPY_H
+#define CLNET_CNPY_H
 
 #include<string>
 #include<stdexcept>
@@ -292,4 +292,4 @@ namespace cnpy {
 
 }
 
-#endif //CL_MNIST_CNPY_H
+#endif //CLNET_CNPY_H

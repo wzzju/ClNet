@@ -120,14 +120,14 @@ public class MainActivity extends AppCompatActivity {
 
     public void onRun(View v) {
         textView.setText("Run");
-//        textView.setText(content.toString() + runCL(clPath));
+        textView.setText(content.toString() + runCL(clPath));
 //        runNpy("/data/local/tmp/clnet/lenet_model/");
-        new AsyncProcessImage().execute();
+//        new AsyncProcessImage().execute();
     }
 
     public void onInit(View v) {
         textView.setText("Init");
-//        deviceQuery();
+        deviceQuery();
     }
 
     public void onClear(View v) {
@@ -243,7 +243,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "CORRECT : " + correct);
             Log.d(TAG, "TOTAL : " + total);
             Log.d(TAG, "ACCURACY : " + ((double) correct / (double) total));
-            Log.d(TAG, String.format(Locale.ENGLISH,"Cost time : %d ms", end - start));
+            Log.d(TAG, String.format(Locale.ENGLISH, "Cost time : %d ms", end - start));
         }
 
         private float[] getImageData() {

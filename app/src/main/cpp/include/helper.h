@@ -44,7 +44,13 @@ public:
         stop_time = std::chrono::high_resolution_clock::now();
         const auto cost_time = std::chrono::duration_cast<std::chrono::microseconds>(
                 stop_time - start_time).count(); //us
-        LOGD("%s cost time : %lld us.\n", tag.c_str(), cost_time);
+        const auto cost_time_seconds_int = cost_time * std::chrono::microseconds::period::num /
+                                           std::chrono::microseconds::period::den;
+        const auto cost_time_seconds_left = cost_time * std::chrono::microseconds::period::num %
+                                            std::chrono::microseconds::period::den;
+//        LOGD("%s cost time : %ld us.\n", tag.c_str(), cost_time);
+        LOGD("%s cost time : %ld.%ld s.\n", tag.c_str(), cost_time_seconds_int,
+             cost_time_seconds_left);
     }
 
 private:

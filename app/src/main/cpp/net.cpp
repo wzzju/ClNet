@@ -5,7 +5,7 @@
 #include <vector>
 #include <cassert>
 #include "cnpy.h"
-#include "utilities.h"
+#include "utility_cpu.h"
 #include "layers/conv_layer.h"
 #include "layers/pooling_layer.h"
 #include "layers/softmax_layer.h"

@@ -27,6 +27,8 @@
             android:id="@+id/iv_image"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:background="@drawable/shape_bg"
+            android:padding="2dp"
             android:src="@android:color/black" />
 
     </LinearLayout>
@@ -47,6 +49,7 @@
                 android:id="@+id/content"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:background="@color/terminalColor"
                 android:text="Empty" />
         </ScrollView>
     </LinearLayout>
@@ -54,41 +57,44 @@
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="0dp"
+        android:layout_gravity="center_horizontal"
         android:layout_weight="1"
         android:orientation="horizontal">
 
         <Button
             android:id="@+id/init"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="@dimen/btn_size"
+            android:layout_height="@dimen/btn_size"
+            android:background="@drawable/btn_selector"
             android:onClick="onInit"
             android:text="@string/btn_init"
             android:textAllCaps="false" />
 
         <Space
             android:layout_width="40dp"
-            android:layout_height="0dp"
-            android:layout_weight="6" />
+            android:layout_height="0dp" />
 
         <Button
             android:id="@+id/run"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="@dimen/btn_size"
+            android:layout_height="@dimen/btn_size"
+            android:background="@drawable/btn_selector"
             android:onClick="onRun"
             android:text="@string/btn_run"
             android:textAllCaps="false" />
 
         <Space
             android:layout_width="40dp"
-            android:layout_height="0dp"
-            android:layout_weight="6" />
+            android:layout_height="0dp" />
 
         <Button
             android:id="@+id/clear"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="@dimen/btn_size"
+            android:layout_height="@dimen/btn_size"
+            android:background="@drawable/btn_selector"
             android:onClick="onClear"
             android:text="@string/btn_clear"
             android:textAllCaps="false" />
     </LinearLayout>
+
 </LinearLayout>

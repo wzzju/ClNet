@@ -2,8 +2,8 @@
 // Created by yuchen on 17-12-27.
 //
 
-#ifndef CAFFE_REF_UTILITIES_H
-#define CAFFE_REF_UTILITIES_H
+#ifndef CLNET_UTILITY_CPU_H
+#define CLNET_UTILITY_CPU_H
 
 #include <string>
 
@@ -52,6 +52,6 @@ void inner_cpu(float *mat_left, int row_left, int col_left,
                float *mat_right, int row_right, int col_right,
                float *result);
 
-void activation_relu(float *input, int count);
+void activation_relu_cpu(float *input, int count);
 
-#endif //CAFFE_REF_UTILITIES_H
+#endif //CLNET_UTILITY_CPU_H

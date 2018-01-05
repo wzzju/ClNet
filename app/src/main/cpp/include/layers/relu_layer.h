@@ -2,8 +2,8 @@
 // Created by yuchen on 17-12-29.
 //
 
-#ifndef CAFFE_REF_RELU_LAYER_H
-#define CAFFE_REF_RELU_LAYER_H
+#ifndef CLNET_RELU_LAYER_H
+#define CLNET_RELU_LAYER_H
 
 
 #include "layer.h"
@@ -23,4 +23,4 @@ private:
 };
 
 
-#endif //CAFFE_REF_RELU_LAYER_H
+#endif //CLNET_RELU_LAYER_H

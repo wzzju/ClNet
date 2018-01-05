@@ -3,7 +3,7 @@
 //
 #include <iostream>
 #include "cnpy.h"
-#include "utilities.h"
+#include "utility_cpu.h"
 
 using namespace std;
 
@@ -94,7 +94,7 @@ void inner_cpu(float *mat_left, int row_left, int col_left,
     }
 }
 
-void activation_relu(float *input, int count) {
+void activation_relu_cpu(float *input, int count) {
     for (int i = 0; i < count; ++i) {
         input[i] = max(input[i], 0.0f);
     }
