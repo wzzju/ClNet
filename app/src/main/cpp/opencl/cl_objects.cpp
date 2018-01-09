@@ -97,7 +97,7 @@ cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
         LOGE("Failed to build the OpenCL program!\nBuild log: %s", log_buf.data());
     }
 
-    matmul.kernel = clCreateKernel(program, "mmmult", &err);
+    matmul.kernel = clCreateKernel(program, "matmul", &err);
     CHECK_ERRORS(err, __FILE__, __LINE__);
 
     clGetKernelWorkGroupInfo(

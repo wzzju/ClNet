@@ -2,7 +2,7 @@ inline bool is_a_ge_zero_and_a_lt_b(int a, int b) {
     return (unsigned)a < (unsigned)b;
 }
 
-__kernel void mmmult(int widthA,
+__kernel void matmul(int widthA,
                      int widthB,
                      __global int *A,
                      __global int *B,

@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <vector>
 #include <CL/cl.h>
-#include <opencl/cl_objects.h>
 #include "utility_gpu.h"
 #include "helper.h"
 #include "cnpy.h"
@@ -19,34 +18,7 @@ using namespace std;
 /****************************准备网络****************************/
 static net m_net("/data/local/tmp/lenet/");
 
-JNIEXPORT jfloatArray JNICALL
-CLNET(inference)(JNIEnv *env, jobject instance,
-                 jfloatArray data_) {
-    jfloat *data = env->GetFloatArrayElements(data_, NULL);
-
-    /****************************前向推断****************************/
-    vector<float> result;
-    {
-        CostTimeHelper timeHelper("inference");
-        result = m_net.forward(data);
-    }
-    jfloatArray resultArr = env->NewFloatArray(result.size());
-    env->SetFloatArrayRegion(resultArr, 0, result.size(), result.data());
-
-    env->ReleaseFloatArrayElements(data_, data, 0);
-
-    return resultArr;
-}
-
-JNIEXPORT jstring JNICALL
-CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
-    const char *path = env->GetStringUTFChars(path_, 0);
-
-    stringstream strs;
-    strs << endl << "/*" << __FUNCTION__ << "*/" << endl;
-
-    cl_objects &clObject = cl_objects::getCLObject(CL_DEVICE_TYPE_GPU, path);
-    /****************************Begin to est utility_gpu.cpp****************************/
+void test_matmul(cl_objects &clObject, stringstream &strs) {
     cl_uint heightA = HEIGHT_G;
     cl_uint widthA = WIDTH_G;
     cl_uint heightB = HEIGHT_G;
@@ -103,7 +75,7 @@ CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
                                  NULL,
                                  &exeEvt);
     clWaitForEvents(1, &exeEvt);
-    CHECK_ERRORS_WITH_NULL_RETURN(err, __FILE__, __LINE__);
+    CHECK_ERRORS(err, __FILE__, __LINE__);
     // let's understand how long it took?
     clGetEventProfilingInfo(exeEvt, CL_PROFILING_COMMAND_START, sizeof(executionStart),
                             &executionStart, NULL);
@@ -129,7 +101,38 @@ CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
         LOGD("Failed!");
         strs << "Failed!" << endl;
     }
-    /****************************End to est utility_gpu.cpp****************************/
+}
+
+JNIEXPORT jfloatArray JNICALL
+CLNET(inference)(JNIEnv *env, jobject instance,
+                 jfloatArray data_) {
+    jfloat *data = env->GetFloatArrayElements(data_, NULL);
+
+    /****************************前向推断****************************/
+    vector<float> result;
+    {
+        CostTimeHelper timeHelper("inference");
+        result = m_net.forward(data);
+    }
+    jfloatArray resultArr = env->NewFloatArray(result.size());
+    env->SetFloatArrayRegion(resultArr, 0, result.size(), result.data());
+
+    env->ReleaseFloatArrayElements(data_, data, 0);
+
+    return resultArr;
+}
+
+JNIEXPORT jstring JNICALL
+CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
+    const char *path = env->GetStringUTFChars(path_, 0);
+
+    stringstream strs;
+    strs << endl << "/*" << __FUNCTION__ << "*/" << endl;
+
+    cl_objects &clObject = cl_objects::getCLObject(CL_DEVICE_TYPE_GPU, path);
+    /****************************Begin to test matmul****************************/
+    test_matmul(clObject, strs);
+    /****************************End to test matmul****************************/
 
     env->ReleaseStringUTFChars(path_, path);
 

@@ -120,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void onRun(View v) {
         textView.setText("Run");
-        textView.setText(content.toString() + runCL(clPath));
+        textView.setText(content.append(runCL(clPath)).toString());
 //        runNpy("/data/local/tmp/clnet/lenet_model/");
 //        new AsyncProcessImage().execute();
     }
