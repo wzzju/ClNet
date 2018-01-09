@@ -3,15 +3,16 @@ cmake_minimum_required(VERSION 3.4.1)
 set(DIST_DIR ${CMAKE_SOURCE_DIR}/../distribution)
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src/main/cpp)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DANDROID_CL -O3 -ffast-math")
 set(STLPORT_FORCE_REBUILD "true")
 
-add_definitions(-DDEBUG)
+add_definitions(-DDEBUG -D__CL_ENABLE_EXCEPTIONS)
 
 add_library(lib_opencl SHARED IMPORTED)
 set_target_properties( lib_opencl
                        PROPERTIES
                        IMPORTED_LOCATION
+#                       ${DIST_DIR}/opencl/lib/${ANDROID_ABI}/libOpenCL.so )
                        ${DIST_DIR}/opencl/lib/${ANDROID_ABI}/libGLES_mali_v2.so )
 
 add_library( # Sets the name of the library.
@@ -41,6 +42,13 @@ find_library( # Sets the name of the path variable.
               # you want CMake to locate.
               log )
 
+find_library( # Sets the name of the path variable.
+              jnigraphics-lib
+
+              # Specifies the name of the NDK library that
+              # you want CMake to locate.
+              jnigraphics )
+
 find_library(z-lib
              NAMES z)
 
@@ -52,4 +60,5 @@ target_link_libraries( # Specifies the target library.
 
                        lib_opencl
                        ${log-lib}
+                       ${jnigraphics-lib}
                        ${z-lib})
