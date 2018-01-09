@@ -96,7 +96,7 @@ JNIEXPORT jfloatArray JNICALL
 CLNET(inference)(JNIEnv *env, jobject instance,
                  jfloatArray data_) {
     jfloat *data = env->GetFloatArrayElements(data_, NULL);
-
+    SCOPE_EXIT(env->ReleaseFloatArrayElements(data_, data, 0));
     /****************************前向推断****************************/
     vector<float> result;
     {
@@ -105,8 +105,6 @@ CLNET(inference)(JNIEnv *env, jobject instance,
     }
     jfloatArray resultArr = env->NewFloatArray(result.size());
     env->SetFloatArrayRegion(resultArr, 0, result.size(), result.data());
-
-    env->ReleaseFloatArrayElements(data_, data, 0);
 
     return resultArr;
 }
@@ -130,6 +128,7 @@ CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
 JNIEXPORT void JNICALL
 CLNET(runNpy)(JNIEnv *env, jobject instance, jstring dir_) {
     const char *dir = env->GetStringUTFChars(dir_, 0);
+    SCOPE_EXIT(env->ReleaseStringUTFChars(dir_, dir));
     ostringstream os;
     os << dir << "Convolution1_w.npy";
     string path = os.str();
@@ -171,8 +170,6 @@ CLNET(runNpy)(JNIEnv *env, jobject instance, jstring dir_) {
     for (auto i = 0; i < arr.shape[0]; ++i) {
         LOGD("%d : %f", i, loaded_data[i]);
     }
-
-    env->ReleaseStringUTFChars(dir_, dir);
 }
 
 JNIEXPORT void JNICALL
