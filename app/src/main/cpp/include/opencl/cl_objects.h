@@ -8,10 +8,10 @@
 #include <string>
 #include <fstream>
 #include <vector>
-#include <CL/cl.h>
+#include <CL/cl.hpp>
 
 typedef struct {
-    cl_kernel kernel;
+    cl::Kernel kernel;
     // 每个kernel的workgroup_size，在local_work_size数组中所有元素的乘积不能大于该值。
     size_t kernel_max_workgroup_size;
 } clnet_kernel;
@@ -28,35 +28,32 @@ class cl_objects {
 
     cl_objects &operator=(const cl_objects &)= delete;
 
-    ~cl_objects();
+    ~cl_objects() = default;
 
 public:
     static cl_objects &getCLObject(cl_device_type required_device_type, const char *path);
 
-    const std::vector<cl_context> &getContexts() const;
+    clnet_kernel &getMatmul();
 
-    const clnet_kernel &getMatmul() const;
+    const std::vector<cl::Context> &getContexts() const;
 
-    const std::vector<std::vector<cl_command_queue>> &getQueues() const;
+    const std::vector<std::vector<cl::CommandQueue>> &getQueues() const;
 
     const std::vector<std::vector<cl_uint>> &getMaxComputeUnits() const;
 
 private:
-    // OpenCL平台和设备
-    cl_uint num_of_platforms; // OpenCL平台数量
-    // platforms[num_of_platforms]
-    std::vector<cl_platform_id> platforms; // 存储OpenCL平台
-    // num_of_devices[num_of_platforms]
-    std::vector<cl_uint> num_of_devices; // 每个OpenCL平台上的设备数量
+    // OpenCL平台和设备初始化
+    std::vector<cl::Platform> platforms; // 存储OpenCL平台
     // devices[num_of_platforms][num_of_devices]
-    std::vector<std::vector<cl_device_id>> devices;// 每个OpenCL平台上有一个设备数组
-    std::vector<std::vector<cl_uint>> maxComputeUnits;// 每个OpenCL平台上有一个设备数组
+    std::vector<std::vector<cl::Device>> devices;// 每个OpenCL平台上有一个设备数组
+    // maxComputeUnits[num_of_platforms][num_of_devices]
+    std::vector<std::vector<cl_uint>> maxComputeUnits; // 每个设备的计算单元数
     // contexts[num_of_platforms]
-    std::vector<cl_context> contexts;
+    std::vector<cl::Context> contexts;
     // 每个OpenCL平台上有一个设备上下文
     // queues[num_of_platforms][num_of_devices]
-    std::vector<std::vector<cl_command_queue>> queues; // 每个OpenCL平台上每个设备的命令队列
-    cl_program program;// OpenCL程序~cl_objects();
+    std::vector<std::vector<cl::CommandQueue>> queues; // 每个OpenCL平台上每个设备的命令队列
+    cl::Program program;// OpenCL程序~cl_objects();
     // OpenCL kernels
     clnet_kernel matmul;// OpenCL内核函数
 

@@ -1,12 +1,14 @@
 //
 // Created by yuchen on 17-12-25.
 //
-#include <CL/cl.h>
+#include <CL/cl.hpp>
 #include <opencl/cl_log.h>
 #include <vector>
+#include <string>
 #include "opencl/cl_objects.h"
 
 using namespace std;
+using namespace cl;
 
 cl_objects &cl_objects::getCLObject(cl_device_type required_device_type, const char *path) {
     static cl_objects clObject(required_device_type, path);
@@ -15,127 +17,67 @@ cl_objects &cl_objects::getCLObject(cl_device_type required_device_type, const c
 
 // HUAWEI MATE 9 PRO : Mali G71 8-core GPU
 cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
-    cl_int err;
-    err = clGetPlatformIDs(5, nullptr, &num_of_platforms);
-    CHECK_ERRORS(err, __FILE__, __LINE__);
-    LOGD("Detect %d platform(s).\n", num_of_platforms);
+    try {
+        Platform::get(&platforms);
+        LOGD("Detect %zu platform(s).\n", platforms.size());
 
-    platforms.resize(num_of_platforms);
-    err = clGetPlatformIDs(num_of_platforms, platforms.data(), nullptr);
-    CHECK_ERRORS(err, __FILE__, __LINE__);
+        devices.resize(platforms.size());
+        maxComputeUnits.resize(platforms.size());
+        contexts.resize(platforms.size());
+        queues.resize(platforms.size());
 
-    num_of_devices.resize(num_of_platforms);
-    devices.resize(num_of_platforms);
-    maxComputeUnits.resize(num_of_platforms);
-    contexts.resize(num_of_platforms);
-    queues.resize(num_of_platforms);
-    for (cl_uint i = 0; i < num_of_platforms; i++) {
-        err = clGetDeviceIDs(platforms[i], required_device_type, 1, nullptr, &num_of_devices[i]);
-        LOGD("Platform %d has %d required device(s)", i, num_of_devices[i]);
-        CHECK_ERRORS(err, __FILE__, __LINE__);
+        for (cl_uint i = 0; i < platforms.size(); i++) {
+            platforms[i].getDevices(required_device_type, &(devices[i]));
+            LOGD("Platform %d has %zu required device(s)", i, devices[i].size());
 
-        devices[i].resize(num_of_devices[i]);
-        maxComputeUnits[i].resize(num_of_devices[i]);
-        err = clGetDeviceIDs(platforms[i], required_device_type, num_of_devices[i],
-                             devices[i].data(), nullptr);
-        CHECK_ERRORS(err, __FILE__, __LINE__);
+            maxComputeUnits[i].resize(devices[i].size());
+            queues[i].resize(devices[i].size());
+            contexts[i] = Context(devices[i]);
 
-        contexts[i] = clCreateContext(nullptr, 1, devices[i].data(), nullptr, nullptr, &err);
-        CHECK_ERRORS(err, __FILE__, __LINE__);
-
-        queues[i].resize(num_of_devices[i]);
-
-        for (cl_uint j = 0; j < num_of_devices[i]; ++j) {
-            err = clGetDeviceInfo(devices[i][j], CL_DEVICE_MAX_COMPUTE_UNITS,
-                                  sizeof(cl_uint), &maxComputeUnits[i][j], NULL);
-            CHECK_ERRORS(err, __FILE__, __LINE__);
-            LOGD("The max compute units of the device %u::%u(platform_id::device_id) is %u.", i, j,
-                 maxComputeUnits[i][j]);
-            /******************************Local Memory : Cache******************************/
-            cl_ulong local_mem_size;
-            err = clGetDeviceInfo(devices[i][j], CL_DEVICE_LOCAL_MEM_SIZE,
-                                  sizeof(cl_ulong), &local_mem_size, NULL);
-            CHECK_ERRORS(err, __FILE__, __LINE__);
-            LOGD("The local memory size of the device %u::%u(platform_id::device_id) is %lu KB.", i,
-                 j, local_mem_size / 1024);
-            /******************************Local Memory : Cache******************************/
-            queues[i][j] = clCreateCommandQueue(contexts[i], devices[i][j],
-                                                CL_QUEUE_PROFILING_ENABLE, &err);
-            CHECK_ERRORS(err, __FILE__, __LINE__);
+            for (cl_uint j = 0; j < devices[i].size(); ++j) {
+                maxComputeUnits[i][j] = devices[i][j].getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
+                LOGD("The max compute units of the device %u::%u(platform_id::device_id) is %u.",
+                     i, j, maxComputeUnits[i][j]);
+                /******************************Local Memory : Cache******************************/
+                cl_ulong local_mem_size = devices[i][j].getInfo<CL_DEVICE_LOCAL_MEM_SIZE>();
+                LOGD("The local memory size of the device %u::%u(platform_id::device_id) is %lu KB.",
+                     i, j, local_mem_size / 1024);
+                /******************************Local Memory : Cache******************************/
+                queues[i][j] = CommandQueue(contexts[i], devices[i][j], CL_QUEUE_PROFILING_ENABLE);
+            }
         }
-    }
 
-    const char *program_buffer = load_program(path).c_str();
-    program = clCreateProgramWithSource(contexts[0], 1,
-                                        &program_buffer, 0, &err);
-    CHECK_ERRORS(err, __FILE__, __LINE__);
-    err = clBuildProgram(program, 0, 0, "-O3 -cl-mad-enable -cl-fast-relaxed-math", 0,
-                         0);
-    if (err == CL_BUILD_PROGRAM_FAILURE) {
-        size_t log_length = 0;
+        string program_buffer = load_program(path);
+        Program::Sources source(1, std::make_pair(program_buffer.c_str(),
+                                                  program_buffer.length() + 1));
+        program = Program(contexts[0], source);
+        program.build(devices[0], "-O3 -cl-mad-enable -cl-fast-relaxed-math");
 
-        err = clGetProgramBuildInfo(
-                program,
-                devices[0][0],
-                CL_PROGRAM_BUILD_LOG,
-                0,
-                0,
-                &log_length);
-        CHECK_ERRORS(err, __FILE__, __LINE__);
+        matmul.kernel = Kernel(program, "matmul");
+        matmul.kernel_max_workgroup_size =
+                matmul.kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(devices[0][0]);
 
-        vector<char> log_buf = vector<char>(log_length);
+        LOGD("KERNEL MAX WORK GROUP SIZE : %zu ", matmul.kernel_max_workgroup_size);
+    } catch (cl::Error err) {
+        LOGE("ERROR: %s\n", err.what());
+        if (err.err() == CL_BUILD_PROGRAM_FAILURE) {
+            string log = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0][0]);
 
-        err = clGetProgramBuildInfo(
-                program,
-                devices[0][0],
-                CL_PROGRAM_BUILD_LOG,
-                log_length,
-                (void *) log_buf.data(),
-                0);
-        CHECK_ERRORS(err, __FILE__, __LINE__);
-
-        LOGE("Failed to build the OpenCL program!\nBuild log: %s", log_buf.data());
-    }
-
-    matmul.kernel = clCreateKernel(program, "matmul", &err);
-    CHECK_ERRORS(err, __FILE__, __LINE__);
-
-    clGetKernelWorkGroupInfo(
-            matmul.kernel,
-            devices[0][0],
-            CL_KERNEL_WORK_GROUP_SIZE,
-            sizeof(size_t),
-            &matmul.kernel_max_workgroup_size,
-            nullptr
-    );
-
-    LOGD("KERNEL MAX WORK GROUP SIZE : %zu ", matmul.kernel_max_workgroup_size);
-}
-
-cl_objects::~cl_objects() {
-    cl_int err = clReleaseKernel(matmul.kernel);
-    CHECK_ERRORS(err, __FILE__, __LINE__);
-    err = clReleaseProgram(program);
-    CHECK_ERRORS(err, __FILE__, __LINE__);
-    for (int i = 0; i < num_of_platforms; i++) {
-        for (cl_uint j = 0; j < num_of_devices[i]; ++j) {
-            err = clReleaseCommandQueue(queues[i][j]);
-            CHECK_ERRORS(err, __FILE__, __LINE__);
+            LOGE("Failed to build the OpenCL program!\nBuild log: %s", log.c_str());
         }
-        err = clReleaseContext(contexts[i]);
-        CHECK_ERRORS(err, __FILE__, __LINE__);
+        CHECK_ERRORS(err.err(), __FILE__, __LINE__);
     }
 }
 
-const vector<cl_context> &cl_objects::getContexts() const {
-    return contexts;
-}
-
-const clnet_kernel &cl_objects::getMatmul() const {
+clnet_kernel &cl_objects::getMatmul() {
     return matmul;
 }
 
-const vector<vector<cl_command_queue>> &cl_objects::getQueues() const {
+const vector<Context> &cl_objects::getContexts() const {
+    return contexts;
+}
+
+const vector<vector<CommandQueue>> &cl_objects::getQueues() const {
     return queues;
 }
 

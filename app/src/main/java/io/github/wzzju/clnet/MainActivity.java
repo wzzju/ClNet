@@ -46,11 +46,11 @@ public class MainActivity extends AppCompatActivity {
     private Button clear;
 
     private String clPath;
-    private final String TAG = "CLNET";
+    private final String TAG = "OPENCLAPP";
     private static final int SELECT_PICTURE = 9999;//选取图片的请求码
     private String selectedImagePath = null;//所选图片的路径
 
-    StringBuilder content = new StringBuilder("***********************START***********************\n");
+    StringBuilder content = new StringBuilder("********************START********************\n");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
     public void onRun(View v) {
         textView.setText("Run");
         textView.setText(content.append(runCL(clPath)).toString());
-//        runNpy("/data/local/tmp/clnet/lenet_model/");
+//        runNpy("/data/local/tmp/lenet/");
 //        new AsyncProcessImage().execute();
     }
 
@@ -192,6 +192,8 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(TAG, inferenceResult);
                 content.append(inferenceResult);
             }
+            /****************************测试网络推断精度****************************/
+//            netAccuracy();
             return null;
         }
 

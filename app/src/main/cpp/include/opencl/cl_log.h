@@ -9,13 +9,17 @@
 #include <CL/cl.h>
 
 // Commonly-defined shortcuts for LogCat output from native C applications.
-#define  LOG_TAG    "CLNET"
+#define  LOG_TAG    "OPENCLAPP"
 
 #ifdef DEBUG
 #define  LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#define  LOGI(...)  __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define  LOGW(...)  __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define  LOGE(...)  __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 #else
 #define  LOGD(...)
+#define  LOGI(...)
+#define  LOGW(...)
 #define  LOGE(...)
 #endif
 
@@ -29,7 +33,7 @@ const char *opencl_error_to_str(cl_int error);
 #define CHECK_ERRORS(ERR, FILE, LINE)                                                 \
     if(ERR != CL_SUCCESS)                                                             \
     {                                                                                 \
-        LOGD                                                                          \
+        LOGE                                                                          \
         (                                                                             \
             "OPENCL ERROR with the error code %s.\nIt is happened in file %s at line %d.\nExiting!\n",   \
             opencl_error_to_str(ERR), FILE, LINE                                      \
@@ -41,7 +45,7 @@ const char *opencl_error_to_str(cl_int error);
 #define CHECK_ERRORS_WITH_RETURN(ERR, FILE, LINE)                                     \
     if(ERR != CL_SUCCESS)                                                             \
     {                                                                                 \
-        LOGD                                                                          \
+        LOGE                                                                          \
         (                                                                             \
             "OPENCL ERROR with the error code %s.\nIt is happened in file %s at line %d.\nExiting!\n",   \
             opencl_error_to_str(ERR), FILE, LINE                                      \
@@ -53,7 +57,7 @@ const char *opencl_error_to_str(cl_int error);
 #define CHECK_ERRORS_WITH_NULL_RETURN(ERR, FILE, LINE)                                \
     if(ERR != CL_SUCCESS)                                                             \
     {                                                                                 \
-        LOGD                                                                          \
+        LOGE                                                                          \
         (                                                                             \
             "OPENCL ERROR with the error code %s.\nIt is happened in file %s at line %d.\nExiting!\n",   \
             opencl_error_to_str(ERR), FILE, LINE                                      \

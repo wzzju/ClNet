@@ -4,7 +4,7 @@
 #include <sstream>
 #include <stdlib.h>
 #include <vector>
-#include <CL/cl.h>
+#include <CL/cl.hpp>
 #include "utility_gpu.h"
 #include "helper.h"
 #include "cnpy.h"
@@ -14,7 +14,7 @@
 #include "clnet.h"
 
 using namespace std;
-
+using namespace cl;
 /****************************准备网络****************************/
 static net m_net("/data/local/tmp/lenet/");
 
@@ -35,65 +35,54 @@ void test_matmul(cl_objects &clObject, stringstream &strs) {
     fillRandom(matrixA, widthA, heightA, 643);
     fillRandom(matrixB, widthB, heightB, 991);
 
-    cl_int err;
-    cl_mem matrixAMemObj = clCreateBuffer(clObject.getContexts()[0],
-                                          CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                          widthA * heightA * sizeof(cl_int),
-                                          matrixA,
-                                          &err);
-    SCOPE_EXIT(clReleaseMemObject(matrixAMemObj));
-    cl_mem matrixBMemObj = clCreateBuffer(clObject.getContexts()[0],
-                                          CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                          widthB * heightB * sizeof(cl_int),
-                                          matrixB,
-                                          &err);
-    SCOPE_EXIT(clReleaseMemObject(matrixBMemObj));
-    cl_mem matrixCMemObj = clCreateBuffer(clObject.getContexts()[0],
-                                          CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
-                                          widthB * heightA * sizeof(cl_int),
-                                          0,
-                                          &err);
-    SCOPE_EXIT(clReleaseMemObject(matrixCMemObj));
+    try {
+        Buffer matrixAMemObj(clObject.getContexts()[0],
+                             CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                             widthA * heightA * sizeof(cl_int),
+                             matrixA);
+        Buffer matrixBMemObj(clObject.getContexts()[0],
+                             CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                             widthB * heightB * sizeof(cl_int),
+                             matrixB);
 
-    clSetKernelArg(clObject.getMatmul().kernel, 0, sizeof(cl_int), (void *) &widthA);
-    clSetKernelArg(clObject.getMatmul().kernel, 1, sizeof(cl_int), (void *) &widthB);
-    clSetKernelArg(clObject.getMatmul().kernel, 2, sizeof(cl_mem), (void *) &matrixAMemObj);
-    clSetKernelArg(clObject.getMatmul().kernel, 3, sizeof(cl_mem), (void *) &matrixBMemObj);
-    clSetKernelArg(clObject.getMatmul().kernel, 4, sizeof(cl_mem), (void *) &matrixCMemObj);
-    size_t globalThreads[] = {heightA, widthB};
-    size_t localThreads[] = {clObject.getMatmul().kernel_max_workgroup_size / 16, 16};
-    cl_event exeEvt;
-    cl_ulong executionStart, executionEnd;
+        Buffer matrixCMemObj(clObject.getContexts()[0],
+                             CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                             widthB * heightA * sizeof(cl_int),
+                             nullptr);
 
-    err = clEnqueueNDRangeKernel(clObject.getQueues()[0][0],
-                                 clObject.getMatmul().kernel,
-                                 2,
-                                 NULL,
-                                 globalThreads,
-                                 localThreads,
-                                 0,
-                                 NULL,
-                                 &exeEvt);
-    clWaitForEvents(1, &exeEvt);
-    CHECK_ERRORS(err, __FILE__, __LINE__);
-    // let's understand how long it took?
-    clGetEventProfilingInfo(exeEvt, CL_PROFILING_COMMAND_START, sizeof(executionStart),
-                            &executionStart, NULL);
-    clGetEventProfilingInfo(exeEvt, CL_PROFILING_COMMAND_END, sizeof(executionEnd), &executionEnd,
-                            NULL);
-    clReleaseEvent(exeEvt);
-    LOGD("Execution the matrix-matrix multiplication took %lu.%lu s\n",
-         (executionEnd - executionStart) / 1000000000,
-         (executionEnd - executionStart) % 1000000000);
-    clEnqueueReadBuffer(clObject.getQueues()[0][0],
-                        matrixCMemObj,
-                        CL_TRUE,
-                        0,
-                        heightA * widthB * sizeof(cl_int),
-                        matrixC,
-                        0,
-                        NULL,
-                        NULL);
+        clObject.getMatmul().kernel.setArg(0, widthA);
+        clObject.getMatmul().kernel.setArg(1, widthB);
+        clObject.getMatmul().kernel.setArg(2, matrixAMemObj);
+        clObject.getMatmul().kernel.setArg(3, matrixBMemObj);
+        clObject.getMatmul().kernel.setArg(4, matrixCMemObj);
+
+        Event exeEvt;
+        cl_ulong executionStart, executionEnd;
+
+        clObject.getQueues()[0][0].enqueueNDRangeKernel(clObject.getMatmul().kernel,
+                                                        NullRange,
+                                                        NDRange(heightA, widthB),
+                                                        NDRange(clObject.getMatmul().kernel_max_workgroup_size /
+                                                                32, 32),
+                                                        nullptr,
+                                                        &exeEvt);
+        clObject.getQueues()[0][0].flush();
+        clObject.getQueues()[0][0].finish();
+        // let's understand how long it took?
+        executionStart = exeEvt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+        executionEnd = exeEvt.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+
+        LOGD("Execution the matrix-matrix multiplication took %lu.%lu s\n",
+             (executionEnd - executionStart) / 1000000000,
+             (executionEnd - executionStart) % 1000000000);
+
+        clObject.getQueues()[0][0].enqueueReadBuffer(matrixCMemObj, CL_TRUE, 0,
+                                                     heightA * widthB * sizeof(cl_int), matrixC);
+    } catch (cl::Error err) {
+        LOGE("ERROR: %s\n", err.what());
+        CHECK_ERRORS(err.err(), __FILE__, __LINE__);
+    }
+
     if (compare(matrixC, matrixA, matrixB, heightA, widthA, widthB)) {
         LOGD("Passed!");
         strs << "Passed!" << endl;
@@ -125,6 +114,7 @@ CLNET(inference)(JNIEnv *env, jobject instance,
 JNIEXPORT jstring JNICALL
 CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
     const char *path = env->GetStringUTFChars(path_, 0);
+    SCOPE_EXIT(env->ReleaseStringUTFChars(path_, path));
 
     stringstream strs;
     strs << endl << "/*" << __FUNCTION__ << "*/" << endl;
@@ -134,8 +124,6 @@ CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
     test_matmul(clObject, strs);
     /****************************End to test matmul****************************/
 
-    env->ReleaseStringUTFChars(path_, path);
-
     return env->NewStringUTF(strs.str().c_str());
 }
 
@@ -143,7 +131,7 @@ JNIEXPORT void JNICALL
 CLNET(runNpy)(JNIEnv *env, jobject instance, jstring dir_) {
     const char *dir = env->GetStringUTFChars(dir_, 0);
     ostringstream os;
-    os << dir << "layer1-conv1_weight_0.npy";
+    os << dir << "Convolution1_w.npy";
     string path = os.str();
     os.str("");//清空os的stream内容
 
@@ -167,7 +155,7 @@ CLNET(runNpy)(JNIEnv *env, jobject instance, jstring dir_) {
         }
     }
 
-    os << dir << "layer1-conv1_bias_0.npy";
+    os << dir << "Convolution1_b.npy";
     path = os.str();
     os.str("");
 
@@ -189,83 +177,45 @@ CLNET(runNpy)(JNIEnv *env, jobject instance, jstring dir_) {
 
 JNIEXPORT void JNICALL
 CLNET(deviceQuery)(JNIEnv *env, jobject instance) {
-    vector<cl_platform_id> platforms;
-    cl_uint num_platforms;
-    cl_int err;
-    err = clGetPlatformIDs(5, nullptr, &num_platforms);
-    CHECK_ERRORS(err, __FILE__, __LINE__);
-    LOGD("Detect %d platform(s).\n", num_platforms);
+    try {
+        vector<Platform> platforms;
+        cl::Platform::get(&platforms);
+        LOGD("Detect %zu platform(s).\n", platforms.size());
+        cl_int platform_index = -1;
+        const char icd_ext[] = "cl_khr_icd";
+        for (cl_int i = 0; i < platforms.size(); i++) {
+            vector<Device> devices;
+            platforms[i].getDevices(CL_DEVICE_TYPE_ALL, &devices);
+            LOGD("The platform %d has %zu devices(CPUs&GPUs).\n", i, devices.size());
+            for (cl_int j = 0; j < devices.size(); j++) {
+                string device_name = devices[j].getInfo<CL_DEVICE_NAME>();
+                LOGD("Platform %d, device %d name: %s", i, j, device_name.c_str());
+            }
+            string p_name = platforms[i].getInfo<CL_PLATFORM_NAME>();
+            LOGD("Platform %d name: %s\n", i, p_name.c_str());
+            string vendor = platforms[i].getInfo<CL_PLATFORM_VENDOR>();
+            LOGD("Platform %d vendor: %s\n", i, vendor.c_str());
+            string version = platforms[i].getInfo<CL_PLATFORM_VERSION>();
+            LOGD("Platform %d version: %s\n", i, version.c_str());
+            string profile = platforms[i].getInfo<CL_PLATFORM_PROFILE>();
+            LOGD("Platform %d full profile or embeded profile? : %s\n", i, profile.c_str());
+            string ext_data = platforms[i].getInfo<CL_PLATFORM_EXTENSIONS>();
+            LOGD("The size of extension data is: %zu\n", ext_data.size());
+            LOGD("Platform %d supports extensions: %s\n", i, ext_data.c_str());
+            /* Look for ICD extension */
+            if (ext_data.find(icd_ext) != string::npos)
+                platform_index = i;
+            /* Display whether ICD extension is supported */
+            if (platform_index > -1)
+                LOGD("Platform %d supports the %s extension.\n",
+                     platform_index, icd_ext);
+        }
+        if (platform_index <= -1)
+            LOGD("No platforms support the %s extension.\n", icd_ext);
 
-    platforms.resize(num_platforms);
-    err = clGetPlatformIDs(num_platforms, platforms.data(), nullptr);
-    CHECK_ERRORS(err, __FILE__, __LINE__);
-
-    vector<char> ext_data;
-    size_t ext_size;
-    cl_int platform_index = -1;
-    const char icd_ext[] = "cl_khr_icd";
-    for (cl_int i = 0; i < num_platforms; i++) {
-        cl_uint num_devices;
-        err = clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_ALL, 1, nullptr, &num_devices);
-        CHECK_ERRORS(err, __FILE__, __LINE__);
-        LOGD("The platform %d has %u devices(CPUs&GPUs).\n", i, num_devices);
-
-        err = clGetPlatformInfo(platforms[i],
-                                CL_PLATFORM_EXTENSIONS, 0, nullptr, &ext_size);
-        CHECK_ERRORS(err, __FILE__, __LINE__);
-        LOGD("The size of extension data is: %zu\n", ext_size);
-
-        ext_data.resize(ext_size);
-        clGetPlatformInfo(platforms[i], CL_PLATFORM_EXTENSIONS,
-                          ext_size, ext_data.data(), nullptr);
-        LOGD("Platform %d supports extensions: %s\n", i, ext_data.data());
-
-        size_t name_size;
-        clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME,
-                          ext_size, nullptr, &name_size);
-        vector<char> name(name_size);
-        clGetPlatformInfo(platforms[i], CL_PLATFORM_NAME,
-                          ext_size, name.data(), nullptr);
-        LOGD("Platform %d name: %s\n", i, name.data());
-
-        size_t vendor_size;
-        clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR,
-                          ext_size, nullptr, &vendor_size);
-        vector<char> vendor(vendor_size);
-        clGetPlatformInfo(platforms[i], CL_PLATFORM_VENDOR,
-                          ext_size, vendor.data(), nullptr);
-        LOGD("Platform %d vendor: %s\n", i, vendor.data());
-
-        size_t version_size;
-        clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION,
-                          ext_size, nullptr, &version_size);
-        vector<char> version(version_size);
-        clGetPlatformInfo(platforms[i], CL_PLATFORM_VERSION,
-                          ext_size, version.data(), nullptr);
-        LOGD("Platform %d version: %s\n", i, version.data());
-
-        size_t profile_size;
-        clGetPlatformInfo(platforms[i], CL_PLATFORM_PROFILE,
-                          ext_size, nullptr, &profile_size);
-        vector<char> profile(profile_size);
-        clGetPlatformInfo(platforms[i], CL_PLATFORM_PROFILE,
-                          ext_size, profile.data(), nullptr);
-        LOGD("Platform %d full profile or embeded profile? : %s\n", i, profile.data());
-
-        /* Look for ICD extension */
-        string ext_str(ext_data.begin(), ext_data.end());
-        if (ext_str.find(icd_ext) != string::npos)
-            platform_index = i;
-//        if (strstr(ext_data.data(), icd_ext) != nullptr)
-//            platform_index = i;
-        LOGD("Platform_index = %d", platform_index);
-        /* Display whether ICD extension is supported */
-        if (platform_index > -1)
-            LOGD("Platform %d supports the %s extension.\n",
-                 platform_index, icd_ext);
+    } catch (cl::Error err) {
+        LOGE("ERROR: %s\n", err.what());
+        CHECK_ERRORS(err.err(), __FILE__, __LINE__);
     }
-
-    if (platform_index <= -1)
-        LOGD("No platforms support the %s extension.\n", icd_ext);
 
 }
