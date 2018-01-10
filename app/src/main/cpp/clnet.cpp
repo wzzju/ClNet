@@ -72,9 +72,8 @@ void test_matmul(cl_objects &clObject, stringstream &strs) {
         executionStart = exeEvt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
         executionEnd = exeEvt.getProfilingInfo<CL_PROFILING_COMMAND_END>();
 
-        LOGD("Execution the matrix-matrix multiplication took %lu.%lu s\n",
-             (executionEnd - executionStart) / 1000000000,
-             (executionEnd - executionStart) % 1000000000);
+        LOGD("The matrix-matrix multiplication on GPU took %f s\n",
+             (double)(executionEnd - executionStart) / 1000000000.0);
 
         clObject.getQueues()[0][0].enqueueReadBuffer(matrixCMemObj, CL_TRUE, 0,
                                                      heightA * widthB * sizeof(cl_int), matrixC);

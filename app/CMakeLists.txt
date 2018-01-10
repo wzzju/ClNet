@@ -13,6 +13,7 @@ set_target_properties( lib_opencl
                        IMPORTED_LOCATION
                        ${DIST_DIR}/opencl/lib/${ANDROID_ABI}/libOpenCL.so )
 #                       ${DIST_DIR}/opencl/lib/${ANDROID_ABI}/libGLES_mali_v2.so )
+#                       ${DIST_DIR}/opencl/lib/${ANDROID_ABI}/libGLES_mali.so )
 
 add_library( # Sets the name of the library.
              clnet
