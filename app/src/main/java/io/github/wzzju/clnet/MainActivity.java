@@ -107,6 +107,15 @@ public class MainActivity extends AppCompatActivity {
                             Toast.LENGTH_SHORT).show();
                 }
                 break;
+            case CheckPermission.CLNET_PERMISSIONS_REQUEST_CAMERA:
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "GRANTED CAMERA PERMISSION!",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "GRANTING CAMERA PERMISSION IS DENIED!",
+                            Toast.LENGTH_SHORT).show();
+                }
+                break;
             default:
                 super.onRequestPermissionsResult(requestCode, permissions,
                         grantResults);

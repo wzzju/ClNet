@@ -15,7 +15,8 @@ cl_objects &cl_objects::getCLObject(cl_device_type required_device_type, const c
     return clObject;
 }
 
-// HUAWEI MATE 9 PRO : Mali G71 8-core GPU
+// HUAWEI MATE 9 PRO : Mali G71 has a 8-core GPU
+// Snapdragon 820 : Adreno 530 has a 4-core GPU
 cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
     try {
         Platform::get(&platforms);
@@ -28,7 +29,7 @@ cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
 
         for (cl_uint i = 0; i < platforms.size(); i++) {
             platforms[i].getDevices(required_device_type, &(devices[i]));
-            LOGD("Platform %d has %zu required device(s)", i, devices[i].size());
+            LOGD("Platform %d has %zu required device(s).", i, devices[i].size());
 
             maxComputeUnits[i].resize(devices[i].size());
             queues[i].resize(devices[i].size());
@@ -53,7 +54,7 @@ cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
         program = Program(contexts[0], source);
         program.build(devices[0], "-O3 -cl-mad-enable -cl-fast-relaxed-math");
 
-        matmul.kernel = Kernel(program, "matmul");
+        matmul.kernel = Kernel(program, "spmv_csr_vector_kernel");
         matmul.kernel_max_workgroup_size =
                 matmul.kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(devices[0][0]);
 

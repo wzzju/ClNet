@@ -18,6 +18,12 @@ set_target_properties( lib_opencl
 #                       ${DIST_DIR}/opencl/lib/${ANDROID_ABI}/libGLES_mali_v2.so )
 #                       ${DIST_DIR}/opencl/lib/${ANDROID_ABI}/libGLES_mali.so )
 
+aux_source_directory(${SRC_DIR} SOURCE_FILES)
+aux_source_directory(${SRC_DIR}/opencl SOURCE_FILES_OPENCL)
+aux_source_directory(${SRC_DIR}/layers SOURCE_FILES_LAYERS)
+list(APPEND SOURCE_FILES ${SOURCE_FILES_OPENCL})
+list(APPEND SOURCE_FILES ${SOURCE_FILES_LAYERS})
+
 add_library( # Sets the name of the library.
              clnet
 
@@ -25,18 +31,7 @@ add_library( # Sets the name of the library.
              SHARED
 
              # Provides a relative path to your source file(s).
-             ${SRC_DIR}/opencl/cl_log.cpp
-             ${SRC_DIR}/opencl/cl_objects.cpp
-             ${SRC_DIR}/layers/conv_layer.cpp
-             ${SRC_DIR}/layers/fc_layer.cpp
-             ${SRC_DIR}/layers/pooling_layer.cpp
-             ${SRC_DIR}/layers/relu_layer.cpp
-             ${SRC_DIR}/layers/softmax_layer.cpp
-             ${SRC_DIR}/net.cpp
-             ${SRC_DIR}/utility_cpu.cpp
-             ${SRC_DIR}/utility_gpu.cpp
-             ${SRC_DIR}/cnpy.cpp
-             ${SRC_DIR}/clnet.cpp)
+             ${SOURCE_FILES})
 
 find_library( # Sets the name of the path variable.
               log-lib

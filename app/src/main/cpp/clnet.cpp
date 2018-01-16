@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <vector>
 #include <CL/cl.hpp>
+#include "spmv.h"
 #include "utility_gpu.h"
 #include "helper.h"
 #include "cnpy.h"
@@ -118,7 +119,8 @@ CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
 
     cl_objects &clObject = cl_objects::getCLObject(CL_DEVICE_TYPE_GPU, path);
     /****************************Begin to test matmul****************************/
-    test_matmul(clObject, strs);
+//    test_matmul(clObject, strs);
+    csrTest(clObject, strs);
     /****************************End to test matmul****************************/
 
     return env->NewStringUTF(strs.str().c_str());

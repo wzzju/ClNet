@@ -14,19 +14,20 @@ import android.support.v4.content.ContextCompat;
  */
 
 public class CheckPermission {
-    public static final int CLNET_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 233;
-    public static final int CLNET_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 322;
+    public static final int CLNET_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 222;
+    public static final int CLNET_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 444;
+    public static final int CLNET_PERMISSIONS_REQUEST_CAMERA = 666;
 
     public static boolean checkPermissionRead(
             final Context context) {
         int currentAPIVersion = Build.VERSION.SDK_INT;
-        if (currentAPIVersion >= android.os.Build.VERSION_CODES.M) {
+        if (currentAPIVersion >= Build.VERSION_CODES.M) {
             if (ContextCompat.checkSelfPermission(context,
                     Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 if (ActivityCompat.shouldShowRequestPermissionRationale(
                         (Activity) context,
                         Manifest.permission.READ_EXTERNAL_STORAGE)) {
-                    showDialog("External storage", context,
+                    showDialog("Read external storage", context,
                             Manifest.permission.READ_EXTERNAL_STORAGE, CLNET_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE);
 
                 } else {
@@ -49,13 +50,13 @@ public class CheckPermission {
     public static boolean checkPermissionWrite(
             final Context context) {
         int currentAPIVersion = Build.VERSION.SDK_INT;
-        if (currentAPIVersion >= android.os.Build.VERSION_CODES.M) {
+        if (currentAPIVersion >= Build.VERSION_CODES.M) {
             if (ContextCompat.checkSelfPermission(context,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 if (ActivityCompat.shouldShowRequestPermissionRationale(
                         (Activity) context,
                         Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                    showDialog("External storage", context,
+                    showDialog("Write external storage", context,
                             Manifest.permission.WRITE_EXTERNAL_STORAGE, CLNET_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
 
                 } else {
@@ -64,6 +65,35 @@ public class CheckPermission {
                                     (Activity) context,
                                     new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
                                     CLNET_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
+                }
+                return false;
+            } else {
+                return true;
+            }
+
+        } else {
+            return true;
+        }
+    }
+
+    public static boolean checkPermissionCamera(
+            final Context context) {
+        int currentAPIVersion = Build.VERSION.SDK_INT;
+        if (currentAPIVersion >= Build.VERSION_CODES.M) {
+            if (ContextCompat.checkSelfPermission(context,
+                    Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                if (ActivityCompat.shouldShowRequestPermissionRationale(
+                        (Activity) context,
+                        Manifest.permission.CAMERA)) {
+                    showDialog("Camera", context,
+                            Manifest.permission.CAMERA, CLNET_PERMISSIONS_REQUEST_CAMERA);
+
+                } else {
+                    ActivityCompat
+                            .requestPermissions(
+                                    (Activity) context,
+                                    new String[]{Manifest.permission.CAMERA},
+                                    CLNET_PERMISSIONS_REQUEST_CAMERA);
                 }
                 return false;
             } else {
