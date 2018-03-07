@@ -129,9 +129,9 @@ public class MainActivity extends AppCompatActivity {
 
     public void onRun(View v) {
         textView.setText("Run");
-//        textView.setText(content.append(runCL(clPath)).toString());
+        textView.setText(content.append(runCL(clPath)).toString());
 //        runNpy("/data/local/tmp/lenet/");
-        new AsyncProcessImage().execute();
+//        new AsyncProcessImage().execute();
     }
 
     public void onInit(View v) {
