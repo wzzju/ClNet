@@ -14,8 +14,6 @@ class softmax_layer : public layer {
 public:
     softmax_layer(int count);
 
-    virtual ~softmax_layer() = default;
-
     void forward(float *input, float *result = nullptr);
 
 private:

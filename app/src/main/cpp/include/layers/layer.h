@@ -20,6 +20,8 @@ class layer {
 public:
     virtual void forward(float *input, float *fced_res = nullptr)=0;
 
+    virtual ~layer() = default;
+
     layer_type type;
 };
 

@@ -14,7 +14,12 @@ extern "C" {
 #define CLNET(METHOD_NAME) \
 Java_io_github_wzzju_clnet_MainActivity_##METHOD_NAME
 
-JNIEXPORT jfloatArray JNICALL
+JNIEXPORT void JNICALL
+CLNET(initNet)(JNIEnv *env, jobject instance, jstring weightPath_,
+               jstring clPath_, jboolean useGPU);
+
+JNIEXPORT
+jfloatArray JNICALL
 CLNET(inference)(JNIEnv *env, jobject instance,
                  jfloatArray data_);
 

@@ -54,11 +54,30 @@ cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
         program = Program(contexts[0], source);
         program.build(devices[0], "-O3 -cl-mad-enable -cl-fast-relaxed-math");
 
-        matmul.kernel = Kernel(program, "spmv_csr_vector_kernel");
-        matmul.kernel_max_workgroup_size =
-                matmul.kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(devices[0][0]);
+        relu.kernel = Kernel(program, "activation_relu_gpu");
+        relu.kernel_max_workgroup_size =
+                relu.kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(devices[0][0]);
+        LOGD("Relu KERNEL MAX WORK GROUP SIZE : %zu ", relu.kernel_max_workgroup_size);
 
-        LOGD("KERNEL MAX WORK GROUP SIZE : %zu ", matmul.kernel_max_workgroup_size);
+        inner.kernel = Kernel(program, "inner_gpu");
+        inner.kernel_max_workgroup_size =
+                inner.kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(devices[0][0]);
+        LOGD("Inner KERNEL MAX WORK GROUP SIZE : %zu ", inner.kernel_max_workgroup_size);
+
+        inner_plus_b.kernel = Kernel(program, "inner_plus_b_gpu");
+        inner_plus_b.kernel_max_workgroup_size =
+                inner_plus_b.kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(devices[0][0]);
+        LOGD("Inner_plus_b KERNEL MAX WORK GROUP SIZE : %zu ", inner_plus_b.kernel_max_workgroup_size);
+
+        im2col.kernel = Kernel(program, "im2col_gpu");
+        im2col.kernel_max_workgroup_size =
+                im2col.kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(devices[0][0]);
+        LOGD("Img2Col KERNEL MAX WORK GROUP SIZE : %zu ", im2col.kernel_max_workgroup_size);
+
+        max_pool.kernel = Kernel(program, "max_pool_gpu");
+        max_pool.kernel_max_workgroup_size =
+                max_pool.kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(devices[0][0]);
+        LOGD("MaxPool KERNEL MAX WORK GROUP SIZE : %zu ", max_pool.kernel_max_workgroup_size);
     } catch (cl::Error err) {
         LOGE("ERROR: %s\n", err.what());
         if (err.err() == CL_BUILD_PROGRAM_FAILURE) {
@@ -70,9 +89,26 @@ cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
     }
 }
 
-clnet_kernel &cl_objects::getMatmul() {
-    return matmul;
+clnet_kernel &cl_objects::getRelu() {
+    return relu;
 }
+
+clnet_kernel &cl_objects::getInner() {
+    return inner;
+}
+
+clnet_kernel &cl_objects::getInner_plus_b() {
+    return inner_plus_b;
+}
+
+clnet_kernel &cl_objects::getImg2col() {
+    return im2col;
+}
+
+clnet_kernel &cl_objects::getMaxPool() {
+    return max_pool;
+}
+
 
 const vector<Context> &cl_objects::getContexts() const {
     return contexts;

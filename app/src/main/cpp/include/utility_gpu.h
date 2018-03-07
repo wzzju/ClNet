@@ -5,14 +5,18 @@
 #ifndef CLNET_UTILITY_GPU_H
 #define CLNET_UTILITY_GPU_H
 
-#define GROUP_SIZE 64 // Mali G71 MP8 has 8 parallel compute units. Here, 64 = 512 / 8
-#define WIDTH_G 512
-#define HEIGHT_G 512
+#include <sstream>
 
-void matrixMul(int *C, const int *A, const int *B, int hA, int wA, int wB);
+class cl_objects;
 
-void fillRandom(int *data, unsigned int width, unsigned height, unsigned long seed);
+void test_relu(cl_objects &clObject, std::stringstream &strs);
 
-bool compare(cl_int *gpuMatC, cl_int *matA, cl_int *matB, int heightA, int widthA, int widthB);
+void test_inner(cl_objects &clObject, std::stringstream &strs);
+
+void test_inner_plus_b(cl_objects &clObject, std::stringstream &strs);
+
+void test_im2col(cl_objects &clObject, std::stringstream &strs);
+
+void test_max_pool(cl_objects &clObject, std::stringstream &strs);
 
 #endif //CLNET_UTILITY_GPU_H

@@ -14,8 +14,6 @@ class relu_layer : public layer {
 public:
     relu_layer(int count);
 
-    virtual ~relu_layer() = default;
-
     void forward(float *input, float *result = nullptr);
 
 private:

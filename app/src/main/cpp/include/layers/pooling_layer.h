@@ -17,8 +17,6 @@ public:
                   int pad_h,
                   int pad_w);
 
-    virtual ~pooling_layer() = default;
-
     void forward(float *input, float *pooled_res = nullptr);
 
 private:

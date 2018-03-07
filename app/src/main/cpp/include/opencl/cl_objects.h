@@ -1,6 +1,7 @@
 //
 // Created by yuchen on 17-12-25.
 //
+// Any of the C++ wrapper objects can return the underlying OpenCL C object using operator().
 
 #ifndef CLNET_CLOBJECTS_H
 #define CLNET_CLOBJECTS_H
@@ -33,7 +34,11 @@ class cl_objects {
 public:
     static cl_objects &getCLObject(cl_device_type required_device_type, const char *path);
 
-    clnet_kernel &getMatmul();
+    clnet_kernel &getRelu();
+    clnet_kernel &getInner();
+    clnet_kernel &getInner_plus_b();
+    clnet_kernel &getImg2col();
+    clnet_kernel &getMaxPool();
 
     const std::vector<cl::Context> &getContexts() const;
 
@@ -53,9 +58,13 @@ private:
     // 每个OpenCL平台上有一个设备上下文
     // queues[num_of_platforms][num_of_devices]
     std::vector<std::vector<cl::CommandQueue>> queues; // 每个OpenCL平台上每个设备的命令队列
-    cl::Program program;// OpenCL程序~cl_objects();
+    cl::Program program;// OpenCL程序
     // OpenCL kernels
-    clnet_kernel matmul;// OpenCL内核函数
+    clnet_kernel relu;
+    clnet_kernel inner;// OpenCL内核函数
+    clnet_kernel inner_plus_b;
+    clnet_kernel im2col;
+    clnet_kernel max_pool;
 
     /**
      * 根据OpenCL程序路径返回其字符串源码。

@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <vector>
 #include <CL/cl.hpp>
-#include "spmv.h"
 #include "utility_gpu.h"
 #include "helper.h"
 #include "cnpy.h"
@@ -16,80 +15,20 @@
 
 using namespace std;
 using namespace cl;
+
 /****************************准备网络****************************/
-static net m_net("/data/local/tmp/lenet/");
+static net m_net;
 
-void test_matmul(cl_objects &clObject, stringstream &strs) {
-    cl_uint heightA = HEIGHT_G;
-    cl_uint widthA = WIDTH_G;
-    cl_uint heightB = HEIGHT_G;
-    cl_uint widthB = WIDTH_G;
-    // allocate memory for input and output matrices
-    // based on whatever matrix theory i know.
-    cl_int *matrixA = new cl_int[widthA * heightA]();
-    SCOPE_EXIT(delete[] matrixA);
-    cl_int *matrixB = new cl_int[widthB * heightB]();
-    SCOPE_EXIT(delete[] matrixB);
-    cl_int *matrixC = new cl_int[widthB * heightA]();
-    SCOPE_EXIT(delete[] matrixC);
+JNIEXPORT void JNICALL
+CLNET(initNet)(JNIEnv *env, jobject instance, jstring weightPath_,
+               jstring clPath_, jboolean useGPU) {
+    const char *weightPath = env->GetStringUTFChars(weightPath_, 0);
+    const char *clPath = env->GetStringUTFChars(clPath_, 0);
 
-    fillRandom(matrixA, widthA, heightA, 643);
-    fillRandom(matrixB, widthB, heightB, 991);
+    m_net.init(weightPath, clPath, useGPU);
 
-    try {
-        Buffer matrixAMemObj(clObject.getContexts()[0],
-                             CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                             widthA * heightA * sizeof(cl_int),
-                             matrixA);
-        Buffer matrixBMemObj(clObject.getContexts()[0],
-                             CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                             widthB * heightB * sizeof(cl_int),
-                             matrixB);
-
-        Buffer matrixCMemObj(clObject.getContexts()[0],
-                             CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
-                             widthB * heightA * sizeof(cl_int),
-                             nullptr);
-
-        clObject.getMatmul().kernel.setArg(0, widthA);
-        clObject.getMatmul().kernel.setArg(1, widthB);
-        clObject.getMatmul().kernel.setArg(2, matrixAMemObj);
-        clObject.getMatmul().kernel.setArg(3, matrixBMemObj);
-        clObject.getMatmul().kernel.setArg(4, matrixCMemObj);
-
-        Event exeEvt;
-        cl_ulong executionStart, executionEnd;
-
-        clObject.getQueues()[0][0].enqueueNDRangeKernel(clObject.getMatmul().kernel,
-                                                        NullRange,
-                                                        NDRange(heightA, widthB),
-                                                        NDRange(clObject.getMatmul().kernel_max_workgroup_size /
-                                                                32, 32),
-                                                        nullptr,
-                                                        &exeEvt);
-        clObject.getQueues()[0][0].flush();
-        clObject.getQueues()[0][0].finish();
-        // let's understand how long it took?
-        executionStart = exeEvt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
-        executionEnd = exeEvt.getProfilingInfo<CL_PROFILING_COMMAND_END>();
-
-        LOGD("The matrix-matrix multiplication on GPU took %f s\n",
-             static_cast<double>(executionEnd - executionStart) / 1000000000.0);
-
-        clObject.getQueues()[0][0].enqueueReadBuffer(matrixCMemObj, CL_TRUE, 0,
-                                                     heightA * widthB * sizeof(cl_int), matrixC);
-    } catch (cl::Error err) {
-        LOGE("ERROR: %s\n", err.what());
-        CHECK_ERRORS(err.err(), __FILE__, __LINE__);
-    }
-
-    if (compare(matrixC, matrixA, matrixB, heightA, widthA, widthB)) {
-        LOGD("Passed!");
-        strs << "Passed!" << endl;
-    } else {
-        LOGD("Failed!");
-        strs << "Failed!" << endl;
-    }
+    env->ReleaseStringUTFChars(weightPath_, weightPath);
+    env->ReleaseStringUTFChars(clPath_, clPath);
 }
 
 JNIEXPORT jfloatArray JNICALL
@@ -118,10 +57,13 @@ CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
     strs << endl << "/*" << __FUNCTION__ << "*/" << endl;
 
     cl_objects &clObject = cl_objects::getCLObject(CL_DEVICE_TYPE_GPU, path);
-    /****************************Begin to test matmul****************************/
-//    test_matmul(clObject, strs);
-    csrTest(clObject, strs);
-    /****************************End to test matmul****************************/
+    /****************************Begin to test OpenCL kernels****************************/
+    test_relu(clObject, strs);
+    test_inner(clObject, strs);
+    test_inner_plus_b(clObject, strs);
+    test_im2col(clObject, strs);
+    test_max_pool(clObject, strs);
+    /****************************End to test OpenCL kernels****************************/
 
     return env->NewStringUTF(strs.str().c_str());
 }

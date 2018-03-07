@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include "opencl/cl_objects.h"
+#include "opencl/cl_log.h"
 #include "cnpy.h"
 #include "utility_cpu.h"
 #include "layers/conv_layer.h"
@@ -15,64 +17,75 @@
 
 using namespace std;
 
-net::net(string proto_path) {
-    /****************************卷积层1****************************/
-    string path_conv1_w = proto_path + "Convolution1_w.npy";
+net::net() : softmax(nullptr), fc2(nullptr),
+             relu1(nullptr), fc1(nullptr),
+             pool2(nullptr), conv2(nullptr),
+             pool1(nullptr), conv1(nullptr) {}
+
+void net::init(string weight_path, string cl_path, bool use_gpu) {
+    this->use_gpu = use_gpu;
+    this->cl_path = cl_path;
+    cl_objects &clObject = cl_objects::getCLObject(CL_DEVICE_TYPE_GPU, cl_path.c_str());
+/****************************卷积层1****************************/
+    string path_conv1_w = weight_path + "Convolution1_w.npy";
     cnpy::NpyArray conv1_w = cnpy::npy_load(path_conv1_w);
     float *conv1_w_data = conv1_w.data<float>();
 
-    string path_conv1_b = proto_path + "Convolution1_b.npy";
+    string path_conv1_b = weight_path + "Convolution1_b.npy";
     cnpy::NpyArray conv1_b = cnpy::npy_load(path_conv1_b);
     float *conv1_b_data = conv1_b.data<float>();
 
-    conv1 = new conv_layer(20, INPUT_C, INPUT_H, INPUT_W, 5, 5, 1, 1, 0, 0, conv1_w_data, conv1_b_data);
+    conv1 = new conv_layer(20, INPUT_C, INPUT_H, INPUT_W, 5, 5, 1, 1, 0, 0, conv1_w_data,
+                           conv1_b_data);
     conv1->type = LAYER_TYPE_CONV;
-    /****************************池化层1****************************/
+/****************************池化层1****************************/
     pool1 = new pooling_layer(conv1->conved_c, conv1->conved_h, conv1->conved_w,
                               2, 2, 2, 2, 0, 0);
     pool1->type = LAYER_TYPE_POOL;
-    /****************************卷积层2****************************/
-    string path_conv2_w = proto_path + "Convolution2_w.npy";
+/****************************卷积层2****************************/
+    string path_conv2_w = weight_path + "Convolution2_w.npy";
     cnpy::NpyArray conv2_w = cnpy::npy_load(path_conv2_w);
     float *conv2_w_data = conv2_w.data<float>();
 
-    string path_conv2_b = proto_path + "Convolution2_b.npy";
+    string path_conv2_b = weight_path + "Convolution2_b.npy";
     cnpy::NpyArray conv2_b = cnpy::npy_load(path_conv2_b);
     float *conv2_b_data = conv2_b.data<float>();
 
-    conv2 = new conv_layer(50, pool1->channels, pool1->pooled_h, pool1->pooled_w, 5, 5, 1, 1, 0, 0, conv2_w_data,
+    conv2 = new conv_layer(50, pool1->channels, pool1->pooled_h, pool1->pooled_w, 5, 5, 1, 1, 0, 0,
+                           conv2_w_data,
                            conv2_b_data);
     conv2->type = LAYER_TYPE_CONV;
-    /****************************池化层2****************************/
+/****************************池化层2****************************/
     pool2 = new pooling_layer(conv2->conved_c, conv2->conved_h, conv2->conved_w,
                               2, 2, 2, 2, 0, 0);
     pool2->type = LAYER_TYPE_POOL;
-    /****************************全连接层1****************************/
-    string path_fc1_w = proto_path + "InnerProduct1_w.npy";
+/****************************全连接层1****************************/
+    string path_fc1_w = weight_path + "InnerProduct1_w.npy";
     cnpy::NpyArray fc1_w = cnpy::npy_load(path_fc1_w);
     float *fc1_w_data = fc1_w.data<float>();
 
-    string path_fc1_b = proto_path + "InnerProduct1_b.npy";
+    string path_fc1_b = weight_path + "InnerProduct1_b.npy";
     cnpy::NpyArray fc1_b = cnpy::npy_load(path_fc1_b);
     float *fc1_b_data = fc1_b.data<float>();
 
-    fc1 = new fc_layer(500, pool2->channels * pool2->pooled_h * pool2->pooled_w, fc1_w_data, fc1_b_data);
+    fc1 = new fc_layer(500, pool2->channels * pool2->pooled_h * pool2->pooled_w, fc1_w_data,
+                       fc1_b_data);
     fc1->type = LAYER_TYPE_FULLY_CONNECTED;
-    /****************************RELU激活层1****************************/
+/****************************RELU激活层1****************************/
     relu1 = new relu_layer(fc1->num_output);
     relu1->type = LAYER_TYPE_ACTIVATION;
-    /****************************全连接层2****************************/
-    string path_fc2_w = proto_path + "InnerProduct2_w.npy";
+/****************************全连接层2****************************/
+    string path_fc2_w = weight_path + "InnerProduct2_w.npy";
     cnpy::NpyArray fc2_w = cnpy::npy_load(path_fc2_w);
     float *fc2_w_data = fc2_w.data<float>();
 
-    string path_fc2_b = proto_path + "InnerProduct2_b.npy";
+    string path_fc2_b = weight_path + "InnerProduct2_b.npy";
     cnpy::NpyArray fc2_b = cnpy::npy_load(path_fc2_b);
     float *fc2_b_data = fc2_b.data<float>();
 
     fc2 = new fc_layer(10, relu1->count, fc2_w_data, fc2_b_data);
     fc2->type = LAYER_TYPE_FULLY_CONNECTED;
-    /****************************Softmax层****************************/
+/****************************Softmax层****************************/
     softmax = new softmax_layer(fc2->num_output);
     softmax->type = LAYER_TYPE_SOFTMAX;
 }

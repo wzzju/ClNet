@@ -23,13 +23,17 @@ class softmax_layer;
 
 class net {
 public:
-    net(std::string proto_path);
+    net();
 
     ~net();
+
+    void init(std::string weight_path, std::string cl_path, bool use_gpu);
 
     std::vector<float> forward(float *input_data);
 
 private:
+    bool use_gpu;
+    std::string cl_path;
     conv_layer *conv1;
     pooling_layer *pool1;
     conv_layer *conv2;

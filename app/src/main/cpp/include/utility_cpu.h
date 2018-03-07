@@ -44,6 +44,15 @@ void im2col_cpu(const float *data_im, const int channels,
                 const int stride_h, const int stride_w,
                 float *data_col);
 
+void max_pool_cpu(float *input,
+                  int channels,
+                  int input_h, int input_w,
+                  int pad_h, int pad_w,
+                  int kernel_h, int kernel_w,
+                  int stride_h, int stride_w,
+                  int pooled_h, int pooled_w,
+                  float *pooled_res);
+
 void inner_plus_b_cpu(float *mat_left, int row_left, int col_left,
                       float *mat_right, int row_right, int col_right,
                       float *bias, float *result);

@@ -129,9 +129,9 @@ public class MainActivity extends AppCompatActivity {
 
     public void onRun(View v) {
         textView.setText("Run");
-        textView.setText(content.append(runCL(clPath)).toString());
+//        textView.setText(content.append(runCL(clPath)).toString());
 //        runNpy("/data/local/tmp/lenet/");
-//        new AsyncProcessImage().execute();
+        new AsyncProcessImage().execute();
     }
 
     public void onInit(View v) {
@@ -150,6 +150,9 @@ public class MainActivity extends AppCompatActivity {
      * A native method that is implemented by the 'clnet' native library,
      * which is packaged with this application.
      */
+
+    public native void initNet(String weightPath, String clPath, boolean useGPU);
+
     public native float[] inference(float[] data);
 
     public native String runCL(String path);
@@ -185,7 +188,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected Void doInBackground(Void... voids) {
             /****************************单张图片的推断****************************/
-            float[] data = getImageData();
+            float[] data = getImageData(28, 28, 3);
             if (data != null) {
                 float[] result = inference(data);
                 float max = 0;
@@ -224,7 +227,7 @@ public class MainActivity extends AppCompatActivity {
                 while ((line = reader.readLine()) != null) {
                     String[] keys = line.split(" ");
                     selectedImagePath = keys[0];
-                    float[] data = getImageData();
+                    float[] data = getImageData(28, 28, 3);
                     float[] result = inference(data);
                     float max = 0;
                     int max_i = -1;
@@ -257,11 +260,11 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, String.format(Locale.ENGLISH, "Cost time : %d ms", end - start));
         }
 
-        private float[] getImageData() {
+        private float[] getImageData(int width, int height, int channels) {
             if (selectedImagePath != null) {
-                final int IMG_WIDTH = 28;
-                final int IMG_HEIGHT = 28;
-                final int IMG_C = 3;
+                final int IMG_WIDTH = width;
+                final int IMG_HEIGHT = height;
+                final int IMG_C = channels;
 
                 final float[] bitmapArray = new float[IMG_C * IMG_HEIGHT * IMG_WIDTH];
 
@@ -320,6 +323,7 @@ public class MainActivity extends AppCompatActivity {
             setBtns(true);
             progress.setVisibility(View.GONE);
             clPath = result;
+            initNet("/data/local/tmp/lenet/", clPath, false);// 初始化网络和OpenCL
             super.onPostExecute(result);
         }
 
