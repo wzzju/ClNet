@@ -5,7 +5,7 @@
 #include <opencl/cl_log.h>
 #include <vector>
 #include <string>
-#include "opencl/cl_objects.h"
+#include <opencl/cl_objects.h>
 
 using namespace std;
 using namespace cl;

@@ -1,5 +1,3 @@
-#define FLT_MAX	0x1.fffffep127f
-
 // relu激活函数
 __kernel void activation_relu_gpu(__global float* input)
 {
@@ -19,6 +17,7 @@ __kernel void inner_gpu(__global const float* mat_left,
     for (int k = 0; k < col_left; ++k) {
         result[i * col_right + j] +=
                 mat_left[i * col_left + k] * mat_right[k * col_right + j];//+=，所以result必须要初始化为0
+        // result[i * col_right + j] = isnan(result[i * col_right + j]) == 1 ? 0 : result[i * col_right + j];
     }
 }
 
@@ -37,6 +36,7 @@ __kernel void inner_plus_b_gpu(__global const float* mat_left,
                 mat_left[i * col_left + k] * mat_right[k * col_right + j];//+=，所以result必须要初始化为0
     }
     result[i * col_right + j] += bias[i];
+    // result[i * col_right + j] = isnan(result[i * col_right + j]) == 1 ? 0 : result[i * col_right + j];
 }
 
 //image to column
@@ -92,10 +92,10 @@ __kernel void max_pool_gpu(
     const int wend = min(wstart + kernel_w, width);
     hstart = max(hstart, (int)0);
     wstart = max(wstart, (int)0);
-    float maxval = -FLT_MAX;
-    int maxidx = -1;
     __global const float* input_slice = input
         + (n * channels + c) * height * width;
+    float maxval = input_slice[hstart * width + wstart];
+    int maxidx = -1;
     for (int h = hstart; h < hend; ++h) {
       for (int w = wstart; w < wend; ++w) {
         if (input_slice[h * width + w] > maxval) {

@@ -9,6 +9,8 @@
 
 class cl_objects;
 
+bool compare_layer(cl_objects &clObject, cl::Buffer &gpu_mat, float *cpu_mat, int size);
+
 void test_relu(cl_objects &clObject, std::stringstream &strs);
 
 void test_inner(cl_objects &clObject, std::stringstream &strs);

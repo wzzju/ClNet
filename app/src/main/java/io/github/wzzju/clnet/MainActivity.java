@@ -25,6 +25,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,6 +39,8 @@ public class MainActivity extends AppCompatActivity {
         System.loadLibrary("clnet");
     }
 
+    public static final boolean LENET = false;
+    public static final boolean GPU = true;
     private Activity activity = this;//获取当前的context
     private ProgressBar progress;
     private ImageView imageView;
@@ -49,7 +53,8 @@ public class MainActivity extends AppCompatActivity {
     private final String TAG = "OPENCLAPP";
     private static final int SELECT_PICTURE = 9999;//选取图片的请求码
     private String selectedImagePath = null;//所选图片的路径
-
+    private boolean hasInited = false;
+    private List<String> alexnetLabels = new ArrayList<>(1000);
     StringBuilder content = new StringBuilder("********************START********************\n");
 
     @Override
@@ -68,7 +73,6 @@ public class MainActivity extends AppCompatActivity {
             intent.setAction(Intent.ACTION_GET_CONTENT);
             startActivityForResult(Intent.createChooser(intent, "Select Picture"), SELECT_PICTURE);
         });
-        new AsyncCopyKernel().execute("clnet.cl");
     }
 
     @Override
@@ -107,6 +111,15 @@ public class MainActivity extends AppCompatActivity {
                             Toast.LENGTH_SHORT).show();
                 }
                 break;
+            case CheckPermission.CLNET_PERMISSIONS_REQUEST_MOUNT_UNMOUNT_FILESYSTEMS:
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(activity, "GRANTED MOUNT_UNMOUNT PERMISSION!",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(activity, "GRANTING MOUNT_UNMOUNT PERMISSION IS DENIED!",
+                            Toast.LENGTH_SHORT).show();
+                }
+                break;
             case CheckPermission.CLNET_PERMISSIONS_REQUEST_CAMERA:
                 if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Toast.makeText(this, "GRANTED CAMERA PERMISSION!",
@@ -124,19 +137,28 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        cleanNet();
         super.onDestroy();
     }
 
     public void onRun(View v) {
         textView.setText("Run");
-        textView.setText(content.append(runCL(clPath)).toString());
+//        textView.setText(content.append(runCL(clPath)).toString());
 //        runNpy("/data/local/tmp/lenet/");
-//        new AsyncProcessImage().execute();
+        new AsyncProcessImage().execute();
     }
 
     public void onInit(View v) {
         textView.setText("Init");
-        deviceQuery();
+//        deviceQuery();
+        if (!hasInited) {
+            if (CheckPermission.checkPermissionWrite(activity)) {
+                new AsyncCopyFiles().execute("clnet.cl", "synset_words.txt");
+                hasInited = true;
+            }
+        } else {
+            Toast.makeText(this, "The model has been initialized!", Toast.LENGTH_SHORT).show();
+        }
     }
 
     public void onClear(View v) {
@@ -152,6 +174,8 @@ public class MainActivity extends AppCompatActivity {
      */
 
     public native void initNet(String weightPath, String clPath, boolean useGPU);
+
+    public native void cleanNet();
 
     public native float[] inference(float[] data);
 
@@ -187,12 +211,45 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected Void doInBackground(Void... voids) {
-            /****************************单张图片的推断****************************/
-            float[] data = getImageData(28, 28, 3);
+            if (LENET) {
+                lenet();
+            } else {
+                alexnet();
+            }
+            return null;
+        }
+
+        private void alexnet() {
+            float[] data = getImageData(227, 227, 3);
             if (data != null) {
                 float[] result = inference(data);
-                float max = 0;
-                int max_i = -1;
+                int k = 1;
+                TopK<Probability<Float>> topK = new TopK<>(k);
+                for (int i = 0; i < result.length; i++) {
+                    topK.add(new Probability<>(result[i], i));
+                }
+                List<Probability<Float>> top = topK.sortedList();
+                content.setLength(0);
+                String state = String.format(Locale.ENGLISH, "The result of Top-%d:\n", k);
+                content.append(state);
+                Log.d(TAG, state);
+                for (int i = top.size() - 1; i >= 0; i--) {
+                    String inferenceResult =
+                            String.format(Locale.ENGLISH, "Probability : %f, Index: %d, Class : %s\n",
+                                    top.get(i).getProb(), top.get(i).getIndex(), alexnetLabels.get(top.get(i).getIndex()));
+                    Log.d(TAG, inferenceResult);
+                    content.append(inferenceResult);
+                }
+            }
+        }
+
+        private void lenet() {
+            /****************************单张图片的推断****************************/
+            float[] data = getImageData(28, 28, 1);
+            if (data != null) {
+                float[] result = inference(data);
+                float max = result[0];
+                int max_i = 0;
                 for (int i = 0; i < 10; ++i) {
                     float value = result[i];
                     if (max < value) {
@@ -206,15 +263,21 @@ public class MainActivity extends AppCompatActivity {
             }
             /****************************测试网络推断精度****************************/
 //            netAccuracy();
-            return null;
         }
 
         /**
-         * 测试网络精度
-         * CORRECT : 9916
+         * CPU测试网络精度
+         * CORRECT : 9910
          * TOTAL : 10000
-         * ACCURACY : 0.9916
-         * Cost time : 715797 ms
+         * ACCURACY : 0.991
+         * Cost time : 581854 ms
+         */
+        /**
+         * GPU测试网络精度
+         * CORRECT : 9910
+         * TOTAL : 10000
+         * ACCURACY : 0.991
+         * Cost time : 329180 ms
          */
         private void netAccuracy() {
             File file = new File("/data/local/tmp/mnist/test/test.txt");
@@ -227,10 +290,10 @@ public class MainActivity extends AppCompatActivity {
                 while ((line = reader.readLine()) != null) {
                     String[] keys = line.split(" ");
                     selectedImagePath = keys[0];
-                    float[] data = getImageData(28, 28, 3);
+                    float[] data = getImageData(28, 28, 1);
                     float[] result = inference(data);
-                    float max = 0;
-                    int max_i = -1;
+                    float max = result[0];
+                    int max_i = 0;
                     for (int i = 0; i < 10; ++i) {
                         float value = result[i];
                         if (max < value) {
@@ -310,7 +373,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private class AsyncCopyKernel extends AsyncTask<String, Void, String> {
+    private class AsyncCopyFiles extends AsyncTask<String, Void, String> {
         @Override
         protected void onPreExecute() {
             setBtns(false);
@@ -323,7 +386,26 @@ public class MainActivity extends AppCompatActivity {
             setBtns(true);
             progress.setVisibility(View.GONE);
             clPath = result;
-            initNet("/data/local/tmp/lenet/", clPath, false);// 初始化网络和OpenCL
+            if (LENET) {
+                initNet("/data/local/tmp/lenet/", clPath, GPU);// 初始化网络和OpenCL
+            } else {
+                initNet("/data/local/tmp/alexnet/", clPath, GPU);// 初始化网络和OpenCL
+            }
+            try {
+                File file = new File(
+                        MainActivity.this.getDir("execdir", MainActivity.this.MODE_PRIVATE),
+                        "synset_words.txt");
+                FileReader reader = new FileReader(file);
+                BufferedReader br = new BufferedReader(reader);
+                String str = null;
+                while ((str = br.readLine()) != null) {
+                    alexnetLabels.add(str);
+                }
+                br.close();
+                reader.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             super.onPostExecute(result);
         }
 
@@ -331,18 +413,22 @@ public class MainActivity extends AppCompatActivity {
         protected String doInBackground(String... strings) {
             String path = null;
             try {
-                File of = new File(
-                        MainActivity.this.getDir("execdir", MainActivity.this.MODE_PRIVATE),
-                        strings[0]);
-                OutputStream out = new FileOutputStream(of);
-                path = of.getAbsolutePath();
-                InputStream in = MainActivity.this.getAssets().open(strings[0]);
-                int length = in.available();
-                byte[] buffer = new byte[length];
-                in.read(buffer);
-                out.write(buffer);
-                in.close();
-                out.close();
+                for (String str : strings) {
+                    File of = new File(
+                            MainActivity.this.getDir("execdir", MainActivity.this.MODE_PRIVATE),
+                            str);
+                    OutputStream out = new FileOutputStream(of);
+                    if (of.getAbsolutePath().endsWith(".cl")) {
+                        path = of.getAbsolutePath();
+                    }
+                    InputStream in = MainActivity.this.getAssets().open(str);
+                    int length = in.available();
+                    byte[] buffer = new byte[length];
+                    in.read(buffer);
+                    out.write(buffer);
+                    in.close();
+                    out.close();
+                }
             } catch (
                     IOException e)
 

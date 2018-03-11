@@ -5,6 +5,8 @@
 #ifndef CLNET_POOLING_LAYER_H
 #define CLNET_POOLING_LAYER_H
 
+#include <CL/cl.hpp>
+#include <opencl/cl_objects.h>
 #include "layer.h"
 
 class pooling_layer : public layer {
@@ -17,7 +19,8 @@ public:
                   int pad_h,
                   int pad_w);
 
-    void forward(float *input, float *pooled_res = nullptr);
+    void forward_cpu(float *input, float *pooled_res = nullptr);
+    void forward_gpu(cl_objects &clObject, cl::Buffer &input, cl::Buffer &pooled_res);
 
 private:
     int kernel_h, kernel_w;

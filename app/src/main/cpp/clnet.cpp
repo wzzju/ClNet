@@ -5,19 +5,19 @@
 #include <stdlib.h>
 #include <vector>
 #include <CL/cl.hpp>
-#include "utility_gpu.h"
-#include "helper.h"
-#include "cnpy.h"
-#include "opencl/cl_log.h"
-#include "opencl/cl_objects.h"
-#include "net.h"
-#include "clnet.h"
+#include <utility_gpu.h>
+#include <helper.h>
+#include <cnpy.h>
+#include <opencl/cl_log.h>
+#include <opencl/cl_objects.h>
+#include <net.h>
+#include <clnet.h>
 
 using namespace std;
 using namespace cl;
 
 /****************************准备网络****************************/
-static net m_net;
+static net *m_net;
 
 JNIEXPORT void JNICALL
 CLNET(initNet)(JNIEnv *env, jobject instance, jstring weightPath_,
@@ -25,10 +25,15 @@ CLNET(initNet)(JNIEnv *env, jobject instance, jstring weightPath_,
     const char *weightPath = env->GetStringUTFChars(weightPath_, 0);
     const char *clPath = env->GetStringUTFChars(clPath_, 0);
 
-    m_net.init(weightPath, clPath, useGPU);
+    m_net = new net(weightPath, clPath, useGPU);
 
     env->ReleaseStringUTFChars(weightPath_, weightPath);
     env->ReleaseStringUTFChars(clPath_, clPath);
+}
+
+JNIEXPORT void JNICALL
+CLNET(cleanNet)(JNIEnv *env, jobject instance) {
+    delete m_net;
 }
 
 JNIEXPORT jfloatArray JNICALL
@@ -38,10 +43,7 @@ CLNET(inference)(JNIEnv *env, jobject instance,
     SCOPE_EXIT(env->ReleaseFloatArrayElements(data_, data, 0));
     /****************************前向推断****************************/
     vector<float> result;
-    {
-        CostTimeHelper timeHelper("inference");
-        result = m_net.forward(data);
-    }
+    result = m_net->forward(data);
     jfloatArray resultArr = env->NewFloatArray(result.size());
     env->SetFloatArrayRegion(resultArr, 0, result.size(), result.data());
 
@@ -73,7 +75,7 @@ CLNET(runNpy)(JNIEnv *env, jobject instance, jstring dir_) {
     const char *dir = env->GetStringUTFChars(dir_, 0);
     SCOPE_EXIT(env->ReleaseStringUTFChars(dir_, dir));
     ostringstream os;
-    os << dir << "Convolution1_w.npy";
+    os << dir << "conv1_w.npy";
     string path = os.str();
     os.str("");//清空os的stream内容
 
@@ -97,7 +99,7 @@ CLNET(runNpy)(JNIEnv *env, jobject instance, jstring dir_) {
         }
     }
 
-    os << dir << "Convolution1_b.npy";
+    os << dir << "conv1_b.npy";
     path = os.str();
     os.str("");
 

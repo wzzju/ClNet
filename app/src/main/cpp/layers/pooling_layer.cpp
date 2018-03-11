@@ -3,10 +3,11 @@
 //
 #include <cmath>
 #include <cassert>
-#include "utility_cpu.h"
-#include "layers/pooling_layer.h"
+#include <utility_cpu.h>
+#include <layers/pooling_layer.h>
 
 using namespace std;
+using namespace cl;
 
 pooling_layer::pooling_layer(int channels, int input_h, int input_w,
                              int kernel_h, int kernel_w, int stride_h,
@@ -37,8 +38,36 @@ pooling_layer::pooling_layer(int channels, int input_h, int input_w,
 }
 
 // pooled_res矩阵应该初始化为一个小值，如：MINUS_FLT_MIN
-void pooling_layer::forward(float *input, float *pooled_res) {
+void pooling_layer::forward_cpu(float *input, float *pooled_res) {
     assert(input != nullptr && pooled_res != nullptr);
     max_pool_cpu(input, channels, input_h, input_w, pad_h, pad_w, kernel_h, kernel_w, stride_h,
                  stride_w, pooled_h, pooled_w, pooled_res);
 }
+
+void pooling_layer::forward_gpu(cl_objects &clObject, cl::Buffer &input, cl::Buffer &pooled_res) {
+    int pooled_size = channels * pooled_h * pooled_w;
+    clObject.getMaxPool().kernel.setArg(0, pooled_size);
+    clObject.getMaxPool().kernel.setArg(1, input);
+    clObject.getMaxPool().kernel.setArg(2, channels);
+    clObject.getMaxPool().kernel.setArg(3, input_h);
+    clObject.getMaxPool().kernel.setArg(4, input_w);
+    clObject.getMaxPool().kernel.setArg(5, pad_h);
+    clObject.getMaxPool().kernel.setArg(6, pad_w);
+    clObject.getMaxPool().kernel.setArg(7, kernel_h);
+    clObject.getMaxPool().kernel.setArg(8, kernel_w);
+    clObject.getMaxPool().kernel.setArg(9, stride_h);
+    clObject.getMaxPool().kernel.setArg(10, stride_w);
+    clObject.getMaxPool().kernel.setArg(11, pooled_h);
+    clObject.getMaxPool().kernel.setArg(12, pooled_w);
+    clObject.getMaxPool().kernel.setArg(13, pooled_res);
+    clObject.getQueues()[0][0].enqueueNDRangeKernel(clObject.getMaxPool().kernel,
+                                                    NullRange,
+                                                    NDRange(pooled_h * pooled_w),
+                                                    NDRange(clObject.getImg2col().kernel_max_workgroup_size),
+                                                    nullptr,
+                                                    nullptr);
+    clObject.getQueues()[0][0].flush();
+    clObject.getQueues()[0][0].finish();
+}
+
+

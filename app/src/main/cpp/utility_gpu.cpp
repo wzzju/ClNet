@@ -4,10 +4,10 @@
 #include <sstream>
 #include <random>
 #include <CL/cl.hpp>
-#include "utility_cpu.h"
-#include "helper.h"
-#include "opencl/cl_objects.h"
-#include "utility_gpu.h"
+#include <utility_cpu.h>
+#include <helper.h>
+#include <opencl/cl_objects.h>
+#include <utility_gpu.h>
 
 using namespace std;
 using namespace cl;
@@ -24,6 +24,36 @@ void fillRandom(float *data, unsigned int width, unsigned height, unsigned long 
             iptr[j + i * width] = distribution(generator);
         }
     }
+}
+
+bool compare_layer(cl_objects &clObject, Buffer &gpu_mat, float *cpu_mat, int size) {
+    bool cmp = false;
+    float *mapped_memory = (float *) clObject.getQueues()[0][0].enqueueMapBuffer(gpu_mat,
+                                                                                 CL_TRUE,
+                                                                                 CL_MAP_READ, 0,
+                                                                                 size *
+                                                                                 sizeof(float));
+    int i = 0;
+    for (; i < size; ++i) {
+        if (mapped_memory[i] != cpu_mat[i]) {
+            LOGD("cpu_mat[%d] != gpu_mat[%d], %f != %f", i, i,
+                 cpu_mat[i], mapped_memory[i]);
+            break;
+        }
+    }
+    if (i == size) {
+        LOGD("Passed!");
+        cmp = true;
+        for (int j = 0; j < 10; ++j) {
+            LOGD("cpu_mat[%d] == gpu_mat[%d], %f == %f", j, j,
+                 cpu_mat[j], mapped_memory[j]);
+        }
+    } else {
+        cmp = false;
+        LOGD("Failed!");
+    }
+    clObject.getQueues()[0][0].enqueueUnmapMemObject(gpu_mat, mapped_memory);
+    return cmp;
 }
 
 bool compare(float *gpuMatC, float *matA, float *matB, int heightA, int widthA, int widthB) {

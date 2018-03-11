@@ -16,7 +16,8 @@ import android.support.v4.content.ContextCompat;
 public class CheckPermission {
     public static final int CLNET_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 222;
     public static final int CLNET_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 444;
-    public static final int CLNET_PERMISSIONS_REQUEST_CAMERA = 666;
+    public static final int CLNET_PERMISSIONS_REQUEST_MOUNT_UNMOUNT_FILESYSTEMS = 666;
+    public static final int CLNET_PERMISSIONS_REQUEST_CAMERA = 888;
 
     public static boolean checkPermissionRead(
             final Context context) {
@@ -65,6 +66,36 @@ public class CheckPermission {
                                     (Activity) context,
                                     new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
                                     CLNET_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
+                }
+                return false;
+            } else {
+                return true;
+            }
+
+        } else {
+            return true;
+        }
+    }
+
+
+    public static boolean checkPermissionMount(
+            final Context context) {
+        int currentAPIVersion = Build.VERSION.SDK_INT;
+        if (currentAPIVersion >= Build.VERSION_CODES.M) {
+            if (ContextCompat.checkSelfPermission(context,
+                    Manifest.permission.MOUNT_UNMOUNT_FILESYSTEMS) != PackageManager.PERMISSION_GRANTED) {
+                if (ActivityCompat.shouldShowRequestPermissionRationale(
+                        (Activity) context,
+                        Manifest.permission.MOUNT_UNMOUNT_FILESYSTEMS)) {
+                    showDialog("mount and unmount filesystems", context,
+                            Manifest.permission.MOUNT_UNMOUNT_FILESYSTEMS, CLNET_PERMISSIONS_REQUEST_MOUNT_UNMOUNT_FILESYSTEMS);
+
+                } else {
+                    ActivityCompat
+                            .requestPermissions(
+                                    (Activity) context,
+                                    new String[]{Manifest.permission.MOUNT_UNMOUNT_FILESYSTEMS},
+                                    CLNET_PERMISSIONS_REQUEST_MOUNT_UNMOUNT_FILESYSTEMS);
                 }
                 return false;
             } else {

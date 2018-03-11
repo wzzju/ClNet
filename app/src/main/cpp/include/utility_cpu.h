@@ -7,8 +7,6 @@
 
 #include <string>
 
-#define MINUS_FLT_MIN         -3.40282e+38f
-
 // inline 函数对编译器而言必须是可见的，以便它能够在调用点内展开该函数。
 // 与非inline函数不同的是，inline函数必须在调用该函数的每个文本文件中定义。
 // 建议把inline函数的定义放到头文件中。

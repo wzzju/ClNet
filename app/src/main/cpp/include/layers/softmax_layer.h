@@ -5,7 +5,6 @@
 #ifndef CLNET_SOFTMAX_LAYER_H
 #define CLNET_SOFTMAX_LAYER_H
 
-
 #include "layer.h"
 
 class softmax_layer : public layer {
@@ -14,7 +13,9 @@ class softmax_layer : public layer {
 public:
     softmax_layer(int count);
 
-    void forward(float *input, float *result = nullptr);
+    void forward_cpu(float *input, float *result = nullptr);
+
+    void forward_gpu(cl_objects &clObject, cl::Buffer &input, cl::Buffer &output);
 
 private:
     int count;

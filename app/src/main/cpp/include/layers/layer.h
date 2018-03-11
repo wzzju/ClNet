@@ -5,7 +5,8 @@
 #ifndef CLNET_LAYER_H
 #define CLNET_LAYER_H
 
-
+#include <CL/cl.hpp>
+#include <opencl/cl_objects.h>
 typedef enum {
     LAYER_TYPE_UNKNOWN = 0,
     LAYER_TYPE_CONV,
@@ -18,7 +19,9 @@ typedef enum {
 class layer {
 
 public:
-    virtual void forward(float *input, float *fced_res = nullptr)=0;
+    virtual void forward_cpu(float *input, float *res = nullptr)=0;
+
+    virtual void forward_gpu(cl_objects &clObject, cl::Buffer &input, cl::Buffer &output)=0;
 
     virtual ~layer() = default;
 

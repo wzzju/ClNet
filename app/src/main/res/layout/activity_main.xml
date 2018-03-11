@@ -67,6 +67,7 @@
             android:layout_height="@dimen/btn_size"
             android:background="@drawable/btn_selector"
             android:onClick="onInit"
+            android:enabled="true"
             android:text="@string/btn_init"
             android:textAllCaps="false" />
 
@@ -80,6 +81,7 @@
             android:layout_height="@dimen/btn_size"
             android:background="@drawable/btn_selector"
             android:onClick="onRun"
+            android:enabled="false"
             android:text="@string/btn_run"
             android:textAllCaps="false" />
 
@@ -93,6 +95,7 @@
             android:layout_height="@dimen/btn_size"
             android:background="@drawable/btn_selector"
             android:onClick="onClear"
+            android:enabled="false"
             android:text="@string/btn_clear"
             android:textAllCaps="false" />
     </LinearLayout>

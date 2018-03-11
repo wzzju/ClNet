@@ -8,6 +8,8 @@
 
 #include <cstddef>
 #include <vector>
+#include <CL/cl.hpp>
+#include <opencl/cl_objects.h>
 #include "layer.h"
 
 class conv_layer : public layer {
@@ -15,11 +17,15 @@ class conv_layer : public layer {
 
 public:
 
-    conv_layer(int conved_c, int input_c, int input_h, int input_w, int kernel_h, int kernel_w, int stride_h,
-               int stride_w, int pad_h, int pad_w, float *_W, float *_bias);
+    conv_layer(int conved_c, int input_c, int input_h, int input_w, int kernel_h, int kernel_w,
+               int stride_h, int stride_w, int pad_h, int pad_w, float *_W, float *_bias,
+               bool use_gpu, cl_objects &clObject);
+
     virtual ~conv_layer();
 
-    void forward(float *input, float *conved_res = nullptr);
+    void forward_cpu(float *input, float *conved_res = nullptr);
+
+    void forward_gpu(cl_objects &clObject, cl::Buffer &input, cl::Buffer &conved_res);
 
 private:
     int conved_c; // output channel
@@ -39,6 +45,8 @@ private:
 
     float *W;
     float *bias;
+    cl::Buffer cl_W;
+    cl::Buffer cl_bias;
 };
 
 

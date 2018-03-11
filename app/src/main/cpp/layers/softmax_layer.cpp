@@ -3,14 +3,15 @@
 //
 #include <cmath>
 #include <cassert>
-#include "utility_cpu.h"
-#include "layers/softmax_layer.h"
+#include <opencl/cl_objects.h>
+#include <utility_cpu.h>
+#include <layers/softmax_layer.h>
 
 softmax_layer::softmax_layer(int count) : count(count) {}
 
-void softmax_layer::forward(float *input, float *result) {
+void softmax_layer::forward_cpu(float *input, float *result) {
     assert(input != nullptr);
-    float scaled = MINUS_FLT_MIN;
+    float scaled = input[0];
     for (int i = 0; i < count; ++i) {
         scaled = max(scaled, input[i]);
     }
@@ -25,3 +26,5 @@ void softmax_layer::forward(float *input, float *result) {
         input[i] = float(std::exp(input[i]) / sum);
     }
 }
+
+void softmax_layer::forward_gpu(cl_objects &clObject, cl::Buffer &input, cl::Buffer &output) {}

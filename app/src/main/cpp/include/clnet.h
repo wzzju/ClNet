@@ -17,6 +17,8 @@ Java_io_github_wzzju_clnet_MainActivity_##METHOD_NAME
 JNIEXPORT void JNICALL
 CLNET(initNet)(JNIEnv *env, jobject instance, jstring weightPath_,
                jstring clPath_, jboolean useGPU);
+JNIEXPORT void JNICALL
+CLNET(cleanNet)(JNIEnv *env, jobject instance);
 
 JNIEXPORT
 jfloatArray JNICALL

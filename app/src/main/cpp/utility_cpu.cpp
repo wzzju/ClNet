@@ -2,8 +2,9 @@
 // Created by yuchen on 17-12-27.
 //
 #include <iostream>
-#include "cnpy.h"
-#include "utility_cpu.h"
+#include <cmath>
+#include <cnpy.h>
+#include <utility_cpu.h>
 
 using namespace std;
 
@@ -101,6 +102,7 @@ void max_pool_cpu(float *input,
                 wstart = max(wstart, 0);
                 //对每张图片来说
                 const int pool_index = ph * pooled_w + pw;
+                pooled_res[pool_index] = input[hstart * input_w + wstart];
                 for (int h = hstart; h < hend; ++h) {
                     for (int w = wstart; w < wend; ++w) {
                         const int index = h * input_w + w;
@@ -138,6 +140,8 @@ void inner_cpu(float *mat_left, int row_left, int col_left,
                 result[i * col_right + j] +=
                         mat_left[i * col_left + k] *
                         mat_right[k * col_right + j];//+=，所以result必须要初始化为0
+//                result[i * col_right + j] = isnan(result[i * col_right + j]) ? 0 : result[
+//                        i * col_right + j];
             }
         }
     }
@@ -166,6 +170,8 @@ void inner_plus_b_cpu(float *mat_left, int row_left, int col_left,
                         mat_right[k * col_right + j];//+=，所以result必须要初始化为0
             }
             result[i * col_right + j] += bias[i];
+//            result[i * col_right + j] = isnan(result[i * col_right + j]) ? 0 : result[
+//                    i * col_right + j];
         }
     }
 }
