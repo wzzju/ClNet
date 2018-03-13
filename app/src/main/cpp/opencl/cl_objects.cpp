@@ -67,7 +67,8 @@ cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
         inner_plus_b.kernel = Kernel(program, "inner_plus_b_gpu");
         inner_plus_b.kernel_max_workgroup_size =
                 inner_plus_b.kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(devices[0][0]);
-        LOGD("Inner_plus_b KERNEL MAX WORK GROUP SIZE : %zu ", inner_plus_b.kernel_max_workgroup_size);
+        LOGD("Inner_plus_b KERNEL MAX WORK GROUP SIZE : %zu ",
+             inner_plus_b.kernel_max_workgroup_size);
 
         im2col.kernel = Kernel(program, "im2col_gpu");
         im2col.kernel_max_workgroup_size =
@@ -78,6 +79,12 @@ cl_objects::cl_objects(cl_device_type required_device_type, const char *path) {
         max_pool.kernel_max_workgroup_size =
                 max_pool.kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(devices[0][0]);
         LOGD("MaxPool KERNEL MAX WORK GROUP SIZE : %zu ", max_pool.kernel_max_workgroup_size);
+
+        spmv.kernel = Kernel(program, "spmv_csr_scalar");
+//        spmv.kernel = Kernel(program, "spmv_csr_vector");
+        spmv.kernel_max_workgroup_size =
+                spmv.kernel.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(devices[0][0]);
+        LOGD("SpMV KERNEL MAX WORK GROUP SIZE : %zu ", spmv.kernel_max_workgroup_size);
     } catch (cl::Error err) {
         LOGE("ERROR: %s\n", err.what());
         if (err.err() == CL_BUILD_PROGRAM_FAILURE) {
@@ -109,6 +116,9 @@ clnet_kernel &cl_objects::getMaxPool() {
     return max_pool;
 }
 
+clnet_kernel &cl_objects::getSpMV() {
+    return spmv;
+}
 
 const vector<Context> &cl_objects::getContexts() const {
     return contexts;

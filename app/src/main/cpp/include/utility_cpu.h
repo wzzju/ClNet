@@ -7,6 +7,12 @@
 
 #include <string>
 
+#define DENSE 1
+#define SPARSE 0
+
+#define VECTOR_SIZE 32
+#define BLOCK_SIZE 128
+
 // inline 函数对编译器而言必须是可见的，以便它能够在调用点内展开该函数。
 // 与非inline函数不同的是，inline函数必须在调用该函数的每个文本文件中定义。
 // 建议把inline函数的定义放到头文件中。
@@ -35,6 +41,13 @@ inline int max(int lhs, int rhs) {
 inline bool is_a_ge_zero_and_a_lt_b(int a, int b) {
     return static_cast<unsigned>(a) < static_cast<unsigned>(b);
 }
+
+void spmv_csr_cpu(const int num_rows,
+                  const int *ptr,
+                  const int *indices,
+                  const float *data,
+                  const float *bias,
+                  const float *vec, float *out);
 
 void im2col_cpu(const float *data_im, const int channels,
                 const int height, const int width, const int kernel_h, const int kernel_w,

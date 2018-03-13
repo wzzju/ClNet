@@ -8,6 +8,22 @@
 
 using namespace std;
 
+void spmv_csr_cpu(const int num_rows,
+                  const int *ptr,
+                  const int *indices,
+                  const float *data,
+                  const float *bias,
+                  const float *vec, float *out) {
+    for (int row = 0; row < num_rows; row++) {
+        float temp = 0;
+        int start_row = ptr[row];
+        int end_row = ptr[row + 1];
+        for (int j = start_row; j < end_row; j++)
+            temp += data[j] * vec[indices[j]];
+        out[row] = temp + bias[row];
+    }
+}
+
 /**
  * im2col_cpu将c个通道的卷积层输入图像转化为c个通道的矩阵，矩阵的行值为卷积核高*卷积核宽，
  * 也就是说，矩阵的单列表征了卷积核操作一次处理的小窗口图像信息；而矩阵的列值为卷积层输出

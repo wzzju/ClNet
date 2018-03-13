@@ -1,3 +1,78 @@
+#define VECTOR_SIZE 32
+// scalar
+__kernel void spmv_csr_scalar( __global const float* val,
+                        __global const float* vec,
+                        __global const int* cols,
+                        __global const int* rowDelimiters,
+                        __global const float* bias,
+                       const int dim, __global float* out)
+{
+    int myRow = get_global_id(0);
+
+    if (myRow < dim) {
+        float t = 0;
+        int start = rowDelimiters[myRow];
+        int end = rowDelimiters[myRow+1];
+        for (int j = start; j < end; j++) {
+            int col = cols[j];
+            t += val[j] * vec[col];
+        }
+        out[myRow] = t + bias[myRow];
+    }
+}
+
+// vector
+__kernel void spmv_csr_vector(__global const float* val,
+                       __global const float* vec,
+                       __global const int* cols,
+                       __global const int* rowDelimiters,
+                       __global const float* bias,
+                       const int dim,
+                       __global float* out) {
+    // Thread ID in block
+    int t = get_local_id(0);
+    // Thread ID within warp/wavefront
+    int id = t & (VECTOR_SIZE-1);
+    // One warp/wavefront per row
+    int threadsPerBlock = get_local_size(0) / VECTOR_SIZE;
+    int myRow = (get_group_id(0) * threadsPerBlock) + (t / VECTOR_SIZE);
+
+    __local volatile float partialSums[128];
+    partialSums[t] = 0;
+
+    if (myRow < dim) {
+        int vecStart = rowDelimiters[myRow];
+        int vecEnd = rowDelimiters[myRow+1];
+        float mySum = 0;
+        for (int j= vecStart + id; j < vecEnd; j += VECTOR_SIZE) {
+            int col = cols[j];
+            mySum += val[j] * vec[col];
+        }
+
+        partialSums[t] = mySum;
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        // Reduce partial sums
+        // Needs to be modified if there is a change in vector
+        // length
+        if (id < 16) partialSums[t] += partialSums[t+16];
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (id <  8) partialSums[t] += partialSums[t+ 8];
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (id <  4) partialSums[t] += partialSums[t+ 4];
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (id <  2) partialSums[t] += partialSums[t+ 2];
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (id <  1) partialSums[t] += partialSums[t+ 1];
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        // Write result
+        if (id == 0) {
+            out[myRow] = partialSums[t] + bias[myRow];
+        }
+    }
+}
+
 // relu激活函数
 __kernel void activation_relu_gpu(__global float* input)
 {

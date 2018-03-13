@@ -35,10 +35,16 @@ public:
     static cl_objects &getCLObject(cl_device_type required_device_type, const char *path);
 
     clnet_kernel &getRelu();
+
     clnet_kernel &getInner();
+
     clnet_kernel &getInner_plus_b();
+
     clnet_kernel &getImg2col();
+
     clnet_kernel &getMaxPool();
+
+    clnet_kernel &getSpMV();
 
     const std::vector<cl::Context> &getContexts() const;
 
@@ -65,6 +71,7 @@ private:
     clnet_kernel inner_plus_b;
     clnet_kernel im2col;
     clnet_kernel max_pool;
+    clnet_kernel spmv;
 
     /**
      * 根据OpenCL程序路径返回其字符串源码。

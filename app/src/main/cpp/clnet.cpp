@@ -60,11 +60,12 @@ CLNET(runCL)(JNIEnv *env, jobject instance, jstring path_) {
 
     cl_objects &clObject = cl_objects::getCLObject(CL_DEVICE_TYPE_GPU, path);
     /****************************Begin to test OpenCL kernels****************************/
-    test_relu(clObject, strs);
-    test_inner(clObject, strs);
-    test_inner_plus_b(clObject, strs);
-    test_im2col(clObject, strs);
-    test_max_pool(clObject, strs);
+//    test_relu(clObject, strs);
+//    test_inner(clObject, strs);
+//    test_inner_plus_b(clObject, strs);
+//    test_im2col(clObject, strs);
+//    test_max_pool(clObject, strs);
+    test_spmv(clObject, strs);
     /****************************End to test OpenCL kernels****************************/
 
     return env->NewStringUTF(strs.str().c_str());

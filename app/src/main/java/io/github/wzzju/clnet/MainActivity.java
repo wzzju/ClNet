@@ -219,6 +219,20 @@ public class MainActivity extends AppCompatActivity {
             return null;
         }
 
+        /***
+         * CPU Dense
+         * The cost time of CPU Inference : 36.474697 s.
+         * The cost time of CPU Inference : 36.759257 s.
+         * The cost time of CPU Inference : 35.504498 s.
+         * The cost time of CPU Inference : 35.834577 s.
+         */
+        /***
+         * GPU Dense
+         * The cost time of GPU Inference : 2.594196 s.
+         * The cost time of GPU Inference : 2.603041 s.
+         * The cost time of GPU Inference : 2.563648 s.
+         * The cost time of GPU Inference : 2.552921 s.
+         */
         private void alexnet() {
             float[] data = getImageData(227, 227, 3);
             if (data != null) {
@@ -266,18 +280,32 @@ public class MainActivity extends AppCompatActivity {
         }
 
         /**
-         * CPU测试网络精度
-         * CORRECT : 9910
+         * CPU测试网络精度 Dense
+         * CORRECT : 9868
          * TOTAL : 10000
-         * ACCURACY : 0.991
-         * Cost time : 581854 ms
+         * ACCURACY : 0.9868
+         * Cost time : 571639 ms
          */
         /**
-         * GPU测试网络精度
-         * CORRECT : 9910
+         * CPU测试网络精度 Sparse
+         * CORRECT : 9868
          * TOTAL : 10000
-         * ACCURACY : 0.991
-         * Cost time : 329180 ms
+         * ACCURACY : 0.9868
+         * Cost time : 508776 ms
+         */
+        /**
+         * GPU测试网络精度 Dense
+         * CORRECT : 9868
+         * TOTAL : 10000
+         * ACCURACY : 0.9868
+         * Cost time : 259446 ms
+         */
+        /**
+         * GPU测试网络精度 Sparse
+         * CORRECT : 9868
+         * TOTAL : 10000
+         * ACCURACY : 0.9868
+         * Cost time : 238508 ms
          */
         private void netAccuracy() {
             File file = new File("/data/local/tmp/mnist/test/test.txt");
@@ -387,7 +415,7 @@ public class MainActivity extends AppCompatActivity {
             progress.setVisibility(View.GONE);
             clPath = result;
             if (LENET) {
-                initNet("/data/local/tmp/lenet/", clPath, GPU);// 初始化网络和OpenCL
+                initNet("/data/local/tmp/lenet_pruned/", clPath, GPU);// 初始化网络和OpenCL
             } else {
                 initNet("/data/local/tmp/alexnet/", clPath, GPU);// 初始化网络和OpenCL
             }

@@ -21,4 +21,6 @@ void test_im2col(cl_objects &clObject, std::stringstream &strs);
 
 void test_max_pool(cl_objects &clObject, std::stringstream &strs);
 
+void test_spmv(cl_objects &clObject, std::stringstream &strs);
+
 #endif //CLNET_UTILITY_GPU_H

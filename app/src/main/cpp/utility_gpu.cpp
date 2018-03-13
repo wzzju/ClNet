@@ -8,6 +8,7 @@
 #include <helper.h>
 #include <opencl/cl_objects.h>
 #include <utility_gpu.h>
+#include <cnpy.h>
 
 using namespace std;
 using namespace cl;
@@ -24,6 +25,32 @@ void fillRandom(float *data, unsigned int width, unsigned height, unsigned long 
             iptr[j + i * width] = distribution(generator);
         }
     }
+}
+
+bool compare_spmv(const float *gpuOut, const int num_rows,
+                  const int *ptr,
+                  const int *indices,
+                  const float *data,
+                  const float *bias,
+                  const float *vec) {
+    float *cpuOut = new float[num_rows]();
+    SCOPE_EXIT(delete[] cpuOut);
+    {
+        CostTimeHelper timeHelper("cpu csr");
+        // cpu matmul
+        spmv_csr_cpu(num_rows, ptr, indices, data, bias, vec, cpuOut);
+    }
+    int length = num_rows;
+    for (int i = 0; i < length; ++i) {
+//        LOGD("cpu(%f) vs gpu(%f)\n", cpuOut[i], gpuOut[i]);
+//        if (int(cpuOut[i] * 10) != int(gpuOut[i] * 10)) {
+        if (cpuOut[i] != gpuOut[i]) {
+            LOGD("cpuOut[%d] != gpuMatC[%d], %f != %f", i, i, cpuOut[i], gpuOut[i]);
+            return false;
+        }
+    }
+    return true;
+
 }
 
 bool compare_layer(cl_objects &clObject, Buffer &gpu_mat, float *cpu_mat, int size) {
@@ -556,6 +583,102 @@ void test_max_pool(cl_objects &clObject, stringstream &strs) {
     if (i == pooled_size) {
         strs << "Passed!" << endl;
         LOGD("Passed!");
+    } else {
+        LOGD("Failed!");
+        strs << "Failed!" << endl;
+    }
+}
+
+void test_spmv(cl_objects &clObject, stringstream &strs) {
+    cnpy::npz_t sparse_w = cnpy::npz_load("/data/local/tmp/lenet_pruned/ip2_w_csr.npz");
+    cnpy::NpyArray _val = sparse_w["val"];
+    cnpy::NpyArray _col_ind = sparse_w["col_ind"];
+    cnpy::NpyArray _row_ptr = sparse_w["row_ptr"];
+    float *values = _val.data<float>();
+    int *cols = _col_ind.data<int>();
+    int *ptr = _row_ptr.data<int>();
+    string path_b = "/data/local/tmp/lenet_pruned/ip2_b.npy";
+    cnpy::NpyArray _b = cnpy::npy_load(path_b);
+    float *bias = _b.data<float>();
+    int num_rows = 10;
+    int num_input = 500;
+    float vector[num_input];
+    float out[num_rows];
+    fillRandom(vector, num_input, 1, 123);
+    LOGD("*********************%zu,%zu************************", _val.shape[0], _col_ind.shape[0]);
+    try {
+        Buffer valMemObj(clObject.getContexts()[0],
+                         CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                         ptr[num_rows] * sizeof(float),
+                         values);
+        Buffer vecMemObj(clObject.getContexts()[0],
+                         CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                         num_input * sizeof(float),
+                         vector);
+        Buffer biasMemObj(clObject.getContexts()[0],
+                          CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                          num_rows * sizeof(float),
+                          bias);
+        Buffer colMemObj(clObject.getContexts()[0],
+                         CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                         ptr[num_rows] * sizeof(int),
+                         cols);
+        Buffer ptrMemObj(clObject.getContexts()[0],
+                         CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                         (num_rows + 1) * sizeof(int),
+                         ptr);
+
+        Buffer outMemObj(clObject.getContexts()[0],
+                         CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                         num_rows * sizeof(float),
+                         nullptr);
+        clObject.getSpMV().kernel.setArg(0, valMemObj);
+        clObject.getSpMV().kernel.setArg(1, vecMemObj);
+        clObject.getSpMV().kernel.setArg(2, colMemObj);
+        clObject.getSpMV().kernel.setArg(3, ptrMemObj);
+        clObject.getSpMV().kernel.setArg(4, biasMemObj);
+        clObject.getSpMV().kernel.setArg(5, num_rows);
+        clObject.getSpMV().kernel.setArg(6, outMemObj);
+        Event exeEvt;
+        cl_ulong executionStart, executionEnd;
+//        std::size_t maxLocal = clObject.getSpMV().kernel_max_workgroup_size;
+//        std::size_t localWorkSize = VECTOR_SIZE;
+//        while (localWorkSize + VECTOR_SIZE <= maxLocal &&
+//               localWorkSize + VECTOR_SIZE <= BLOCK_SIZE) {
+//            localWorkSize += VECTOR_SIZE;
+//        }
+//        const std::size_t globalWorkSize = num_rows * VECTOR_SIZE; // 1 warp per row
+//        clObject.getQueues()[0][0].enqueueNDRangeKernel(clObject.getSpMV().kernel,
+//                                                        NullRange,
+//                                                        NDRange(globalWorkSize),
+//                                                        NDRange(localWorkSize),
+//                                                        nullptr,
+//                                                        &exeEvt);
+        clObject.getQueues()[0][0].enqueueNDRangeKernel(clObject.getSpMV().kernel,
+                                                        NullRange,
+                                                        NDRange(num_rows),
+                                                        NullRange,
+                                                        nullptr,
+                                                        &exeEvt);
+        clObject.getQueues()[0][0].flush();
+        clObject.getQueues()[0][0].finish();
+
+        executionStart = exeEvt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+        executionEnd = exeEvt.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+
+        LOGD("The spmv-csr on GPU took %f s\n",
+             static_cast<double>(executionEnd - executionStart) / 1000000000.0);
+
+        clObject.getQueues()[0][0].enqueueReadBuffer(outMemObj, CL_TRUE, 0,
+                                                     num_rows * sizeof(float), out);
+    } catch (Error err) {
+        LOGE("ERROR: %s\n", err.what());
+        CHECK_ERRORS(err.err(), __FILE__, __LINE__);
+    }
+
+    if (compare_spmv(out, num_rows, ptr, cols, values, bias, vector)) {
+        LOGD("Passed!");
+        strs << "Passed!" << endl;
     } else {
         LOGD("Failed!");
         strs << "Failed!" << endl;

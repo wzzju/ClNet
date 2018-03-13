@@ -21,6 +21,7 @@
 using namespace std;
 using namespace cl;
 #if LENET
+
 net::net(string weight_path, string cl_path, bool use_gpu) : softmax(nullptr), fc2(nullptr),
                                                              relu1(nullptr), fc1(nullptr),
                                                              pool2(nullptr), conv2(nullptr),
@@ -61,35 +62,61 @@ net::net(string weight_path, string cl_path, bool use_gpu) : softmax(nullptr), f
                               2, 2, 2, 2, 0, 0);
     pool2->type = LAYER_TYPE_POOL;
 /****************************全连接层1****************************/
-    string path_fc1_w = weight_path + "ip1_w.npy";
-    cnpy::NpyArray fc1_w = cnpy::npy_load(path_fc1_w);
-    float *fc1_w_data = fc1_w.data<float>();
-
     string path_fc1_b = weight_path + "ip1_b.npy";
     cnpy::NpyArray fc1_b = cnpy::npy_load(path_fc1_b);
     float *fc1_b_data = fc1_b.data<float>();
-
+#if DENSE
+    string path_fc1_w = weight_path + "ip1_w.npy";
+    cnpy::NpyArray fc1_w = cnpy::npy_load(path_fc1_w);
+    float *fc1_w_data = fc1_w.data<float>();
     fc1 = new fc_layer(500, pool2->channels * pool2->pooled_h * pool2->pooled_w, fc1_w_data,
                        fc1_b_data, use_gpu, clObject);
+#endif
+#if SPARSE
+    string path_fc1_w = weight_path + "ip1_w_csr.npz";
+    cnpy::npz_t fc1_w = cnpy::npz_load(path_fc1_w);
+    cnpy::NpyArray fc1_w_val = fc1_w["val"];
+    cnpy::NpyArray fc1_w_col_ind = fc1_w["col_ind"];
+    cnpy::NpyArray fc1_w_row_ptr = fc1_w["row_ptr"];
+    float *fc1_values = fc1_w_val.data<float>();
+    int *fc1_cols = fc1_w_col_ind.data<int>();
+    int *fc1_ptr = fc1_w_row_ptr.data<int>();
+    fc1 = new fc_layer(500, pool2->channels * pool2->pooled_h * pool2->pooled_w, fc1_values,
+                       fc1_cols, fc1_ptr,
+                       fc1_b_data, use_gpu, clObject);
+#endif
     fc1->type = LAYER_TYPE_FULLY_CONNECTED;
 /****************************RELU激活层1****************************/
     relu1 = new relu_layer(fc1->num_output);
     relu1->type = LAYER_TYPE_ACTIVATION;
 /****************************全连接层2****************************/
-    string path_fc2_w = weight_path + "ip2_w.npy";
-    cnpy::NpyArray fc2_w = cnpy::npy_load(path_fc2_w);
-    float *fc2_w_data = fc2_w.data<float>();
-
     string path_fc2_b = weight_path + "ip2_b.npy";
     cnpy::NpyArray fc2_b = cnpy::npy_load(path_fc2_b);
     float *fc2_b_data = fc2_b.data<float>();
-
+#if DENSE
+    string path_fc2_w = weight_path + "ip2_w.npy";
+    cnpy::NpyArray fc2_w = cnpy::npy_load(path_fc2_w);
+    float *fc2_w_data = fc2_w.data<float>();
     fc2 = new fc_layer(10, relu1->count, fc2_w_data, fc2_b_data, use_gpu, clObject);
+#endif
+#if SPARSE
+    string path_fc2_w = weight_path + "ip2_w_csr.npz";
+    cnpy::npz_t fc2_w = cnpy::npz_load(path_fc2_w);
+    cnpy::NpyArray fc2_w_val = fc2_w["val"];
+    cnpy::NpyArray fc2_w_col_ind = fc2_w["col_ind"];
+    cnpy::NpyArray fc2_w_row_ptr = fc2_w["row_ptr"];
+    float *fc2_values = fc2_w_val.data<float>();
+    int *fc2_cols = fc2_w_col_ind.data<int>();
+    int *fc2_ptr = fc2_w_row_ptr.data<int>();
+    fc2 = new fc_layer(10, relu1->count, fc2_values, fc2_cols, fc2_ptr,
+                       fc2_b_data, use_gpu, clObject);
+#endif
     fc2->type = LAYER_TYPE_FULLY_CONNECTED;
 /****************************Softmax层****************************/
     softmax = new softmax_layer(fc2->num_output);
     softmax->type = LAYER_TYPE_SOFTMAX;
 }
+
 #endif
 
 #if ALEXNET
@@ -207,46 +234,86 @@ net::net(std::string weight_path, std::string cl_path, bool use_gpu) : conv1(nul
                               3, 3, 2, 2, 0, 0);
     pool5->type = LAYER_TYPE_POOL;
     /****************************全连接层6****************************/
-    string path_fc6_w = weight_path + "fc6_w.npy";
-    cnpy::NpyArray fc6_w = cnpy::npy_load(path_fc6_w);
-    float *fc6_w_data = fc6_w.data<float>();
-
     string path_fc6_b = weight_path + "fc6_b.npy";
     cnpy::NpyArray fc6_b = cnpy::npy_load(path_fc6_b);
     float *fc6_b_data = fc6_b.data<float>();
-
+#if DENSE
+    string path_fc6_w = weight_path + "fc6_w.npy";
+    cnpy::NpyArray fc6_w = cnpy::npy_load(path_fc6_w);
+    float *fc6_w_data = fc6_w.data<float>();
     fc6 = new fc_layer(4096, pool5->channels * pool5->pooled_h * pool5->pooled_w, fc6_w_data,
                        fc6_b_data, use_gpu, clObject);
+#endif
+#if SPARSE
+    string path_fc6_w = weight_path + "fc6_w_csr.npz";
+    cnpy::npz_t fc6_w = cnpy::npz_load(path_fc6_w);
+    cnpy::NpyArray fc6_w_val = fc6_w["val"];
+    cnpy::NpyArray fc6_w_col_ind = fc6_w["col_ind"];
+    cnpy::NpyArray fc6_w_row_ptr = fc6_w["row_ptr"];
+    float *fc6_values = fc6_w_val.data<float>();
+    int *fc6_cols = fc6_w_col_ind.data<int>();
+    int *fc6_ptr = fc6_w_row_ptr.data<int>();
+    fc6 = new fc_layer(4096, pool5->channels * pool5->pooled_h * pool5->pooled_w, fc6_values,
+                       fc6_cols, fc6_ptr,
+                       fc6_b_data, use_gpu, clObject);
+#endif
     fc6->type = LAYER_TYPE_FULLY_CONNECTED;
     /****************************RELU激活层6****************************/
     relu6 = new relu_layer(fc6->num_output);
     relu6->type = LAYER_TYPE_ACTIVATION;
     /****************************全连接层7****************************/
-    string path_fc7_w = weight_path + "fc7_w.npy";
-    cnpy::NpyArray fc7_w = cnpy::npy_load(path_fc7_w);
-    float *fc7_w_data = fc7_w.data<float>();
-
     string path_fc7_b = weight_path + "fc7_b.npy";
     cnpy::NpyArray fc7_b = cnpy::npy_load(path_fc7_b);
     float *fc7_b_data = fc7_b.data<float>();
-
+#if DENSE
+    string path_fc7_w = weight_path + "fc7_w.npy";
+    cnpy::NpyArray fc7_w = cnpy::npy_load(path_fc7_w);
+    float *fc7_w_data = fc7_w.data<float>();
     fc7 = new fc_layer(4096, relu6->count, fc7_w_data,
                        fc7_b_data, use_gpu, clObject);
+#endif
+#if SPARSE
+    string path_fc7_w = weight_path + "fc7_w_csr.npz";
+    cnpy::npz_t fc7_w = cnpy::npz_load(path_fc7_w);
+    cnpy::NpyArray fc7_w_val = fc7_w["val"];
+    cnpy::NpyArray fc7_w_col_ind = fc7_w["col_ind"];
+    cnpy::NpyArray fc7_w_row_ptr = fc7_w["row_ptr"];
+    float *fc7_values = fc7_w_val.data<float>();
+    int *fc7_cols = fc7_w_col_ind.data<int>();
+    int *fc7_ptr = fc7_w_row_ptr.data<int>();
+    fc7 = new fc_layer(4096, relu6->count, fc7_values,
+                       fc7_cols, fc7_ptr,
+                       fc7_b_data, use_gpu, clObject);
+#endif
     fc7->type = LAYER_TYPE_FULLY_CONNECTED;
     /****************************RELU激活层7****************************/
     relu7 = new relu_layer(fc7->num_output);
     relu7->type = LAYER_TYPE_ACTIVATION;
     /****************************全连接层8****************************/
-    string path_fc8_w = weight_path + "fc8_w.npy";
-    cnpy::NpyArray fc8_w = cnpy::npy_load(path_fc8_w);
-    float *fc8_w_data = fc8_w.data<float>();
-
     string path_fc8_b = weight_path + "fc8_b.npy";
     cnpy::NpyArray fc8_b = cnpy::npy_load(path_fc8_b);
     float *fc8_b_data = fc8_b.data<float>();
 
+#if DENSE
+    string path_fc8_w = weight_path + "fc8_w.npy";
+    cnpy::NpyArray fc8_w = cnpy::npy_load(path_fc8_w);
+    float *fc8_w_data = fc8_w.data<float>();
     fc8 = new fc_layer(1000, relu7->count, fc8_w_data,
                        fc8_b_data, use_gpu, clObject);
+#endif
+#if SPARSE
+    string path_fc8_w = weight_path + "fc8_w_csr.npz";
+    cnpy::npz_t fc8_w = cnpy::npz_load(path_fc8_w);
+    cnpy::NpyArray fc8_w_val = fc8_w["val"];
+    cnpy::NpyArray fc8_w_col_ind = fc8_w["col_ind"];
+    cnpy::NpyArray fc8_w_row_ptr = fc8_w["row_ptr"];
+    float *fc8_values = fc8_w_val.data<float>();
+    int *fc8_cols = fc8_w_col_ind.data<int>();
+    int *fc8_ptr = fc8_w_row_ptr.data<int>();
+    fc8 = new fc_layer(1000, relu7->count, fc8_values,
+                       fc8_cols, fc8_ptr,
+                       fc8_b_data, use_gpu, clObject);
+#endif
     fc8->type = LAYER_TYPE_FULLY_CONNECTED;
     /****************************Softmax层****************************/
     softmax = new softmax_layer(fc8->num_output);
